@@ -1,0 +1,40 @@
+# python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# secrets and config
+.env
+secrets/
+*.netrc
+
+# data — never commit rasters
+data/raw/
+data/interim/
+data/processed/
+*.tif
+*.tiff
+*.SAFE/
+*.zip
+*.nc
+*.h5
+
+# ml artefacts
+mlruns/
+*.pkl
+*.joblib
+*.pt
+
+# node
+node_modules/
+dist/
+.expo/
+
+# os / editor
+.DS_Store
+.vscode/
+.idea/
