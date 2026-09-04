@@ -1,3 +1,5 @@
+import pytest
+
 from ingestion.aoi import DEFAULT, NH10_SEVOKE_GANGTOK
 
 
@@ -20,3 +22,12 @@ def test_wkt_polygon_closes():
 def test_geojson_ring_closes():
     ring = DEFAULT.geojson["coordinates"][0]
     assert ring[0] == ring[-1]
+
+
+def test_earthengine_missing_project_is_a_clear_error(monkeypatch):
+    """A missing project must not surface as a stack trace from inside ee."""
+    from ingestion.clients.earthengine import EarthEngineNotConfigured, initialize
+
+    monkeypatch.setenv("GEE_PROJECT_ID", "")
+    with pytest.raises(EarthEngineNotConfigured, match="GEE_PROJECT_ID"):
+        initialize()

@@ -38,3 +38,6 @@ dist/
 .DS_Store
 .vscode/
 .idea/
+
+# osmnx response cache
+cache/
