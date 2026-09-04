@@ -149,3 +149,87 @@ def replay(
         nearest_segment=nearest,
         tiers=tiers,
     )
+
+
+def lead_time_distribution(
+    events: gpd.GeoDataFrame,
+    segments: gpd.GeoDataFrame,
+    training_frame: pd.DataFrame,
+    tiers: list[tuple[float, str]],
+    first_year: int = 2010,
+    days_before: int = 21,
+    creep_state: str = "unknown",
+    source: str = "chirps",
+) -> pd.DataFrame:
+    """Lead time for every event, each scored by a model that never saw it.
+
+    One replay is an anecdote. This walks forward year by year: for events in
+    year Y the trigger model is fitted on years strictly before Y, so no event
+    is ever scored by a model trained on its own monsoon. Rainfall is fetched
+    once per year for the whole corridor and shared across that year's events,
+    since the windows overlap heavily.
+    """
+    from models.trigger.model import fit
+
+    dated = events[events["occurred_on"].notna()].copy()
+    dated["year"] = [d.year for d in dated["occurred_on"]]
+    dated = dated[dated["year"] >= first_year]
+
+    points = _segment_points(segments)
+    hazard = points.set_index("segment")["hazard_raw"].astype(float)
+    metric = points.to_crs(segments.crs)
+
+    rows = []
+    for year, group in dated.groupby("year"):
+        history = training_frame[pd.to_datetime(training_frame["day"]).dt.year < year]
+        if history["event"].sum() < 5:
+            log.warning("year %d: only %d prior events, skipping",
+                        year, int(history["event"].sum()))
+            continue
+        model = fit(history)
+
+        earliest = min(group["occurred_on"]) - timedelta(days=days_before + LOOKBACK_DAYS)
+        latest = max(group["occurred_on"]) + timedelta(days=1)
+        daily = daily_at_points(points, earliest.isoformat(), latest.isoformat(),
+                                source=source, id_field="segment")
+        if daily.empty:
+            continue
+
+        features = _antecedent(daily)
+        features["day"] = pd.to_datetime(features["day"])
+        probability = model.predict_proba(features[RAIN_FEATURES].to_numpy())[:, 1]
+        risk = np.minimum(
+            features["pid"].map(hazard).fillna(0.0).to_numpy()
+            * probability * DEFORMATION_MODIFIER.get(creep_state, 1.0),
+            1.0,
+        )
+        features["risk"] = risk
+        features["tier_rank"] = [TIER_ORDER[tier_for(v, tiers)] for v in risk]
+
+        for _, event in group.iterrows():
+            occurred = pd.Timestamp(event["occurred_on"])
+            distances = metric.geometry.distance(
+                gpd.GeoSeries([event.geometry], crs=events.crs).to_crs(segments.crs).iloc[0]
+            )
+            nearest = str(metric.loc[distances.idxmin(), "segment"])
+            on_segment = features[
+                (features["pid"] == nearest)
+                & (features["day"] <= occurred)
+                & (features["day"] > occurred - timedelta(days=days_before))
+            ]
+            record = {
+                "occurred_on": event["occurred_on"], "year": year,
+                "segment": nearest, "distance_to_road_m": float(distances.min()),
+                "accuracy_m": event.get("accuracy_m"),
+                "n_prior_events": int(history["event"].sum()),
+            }
+            for tier in ("yellow", "orange", "red"):
+                hit = on_segment[on_segment["tier_rank"] >= TIER_ORDER[tier]]
+                record[f"lead_{tier}_days"] = (
+                    (occurred - hit["day"].min()).days if len(hit) else None
+                )
+            rows.append(record)
+
+    out = pd.DataFrame(rows)
+    log.info("scored %d events across %d years", len(out), out["year"].nunique() if len(out) else 0)
+    return out

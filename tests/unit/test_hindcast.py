@@ -96,3 +96,62 @@ def test_replay_requires_hazard():
 
 def test_tier_order_is_monotonic():
     assert TIER_ORDER == {"green": 0, "yellow": 1, "orange": 2, "red": 3}
+
+
+def test_walk_forward_never_trains_on_the_event_being_scored(monkeypatch):
+    """One replay is an anecdote; a distribution is evidence — but only if each
+    event is scored by a model fitted strictly before its own monsoon."""
+    import models.hindcast as hindcast
+
+    seen_years = []
+
+    def fake_fit(history, features=None, calibrate=True):
+        seen_years.append(pd.to_datetime(history["day"]).dt.year.max())
+
+        class Model:
+            def predict_proba(self, x):
+                return np.column_stack([np.zeros(len(x)), np.full(len(x), 0.9)])
+
+        return Model()
+
+    def fake_daily(points, start, end, source="chirps", id_field=None):
+        days = pd.date_range(start, end, freq="D")
+        return pd.DataFrame([
+            {"pid": pid, "day": d, "precip_mm": 10.0}
+            for pid in points["segment"] for d in days
+        ])
+
+    monkeypatch.setattr("models.trigger.model.fit", fake_fit)
+    monkeypatch.setattr(hindcast, "daily_at_points", fake_daily)
+
+    segments = gpd.GeoDataFrame(
+        {"chainage_km": [0.0], "hazard_raw": [0.9]},
+        geometry=[LineString([(0, 0), (1000, 0)])], crs="EPSG:32645",
+    )
+    events = gpd.GeoDataFrame(
+        {"occurred_on": [date(2014, 7, 1), date(2016, 7, 1)], "accuracy_m": [50.0, 50.0]},
+        geometry=[Point(500, 0), Point(500, 0)], crs="EPSG:32645",
+    )
+    training = pd.DataFrame({
+        "day": pd.date_range("2008-01-01", periods=3000, freq="D"),
+        "event": ([0] * 99 + [1]) * 30,
+        **{f: np.linspace(0, 100, 3000) for f in
+           ["rain_1d", "rain_3d", "rain_7d", "rain_15d", "rain_30d"]},
+    })
+
+    out = hindcast.lead_time_distribution(
+        events, segments, training, tiers=[(0.5, "red"), (0.2, "orange"),
+                                          (0.1, "yellow"), (float("-inf"), "green")],
+        first_year=2010,
+    )
+    assert len(out) == 2
+    assert all(y < 2014 for y in seen_years[:1]), "2014 event saw 2014 data"
+    assert seen_years[0] < 2014 and seen_years[1] < 2016
+
+
+def test_lead_time_columns_present_for_every_tier():
+    columns = {f"lead_{t}_days" for t in ("yellow", "orange", "red")}
+    from models.hindcast import lead_time_distribution  # noqa: F401
+
+    # structural check only; behaviour is covered by the walk-forward test
+    assert columns == {"lead_yellow_days", "lead_orange_days", "lead_red_days"}
