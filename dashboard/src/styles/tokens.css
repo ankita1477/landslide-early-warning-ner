@@ -1,0 +1,123 @@
+/* Design tokens. Defined once; both routes read from here. */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+:root {
+  /* ── Base, layered dark ─────────────────────────────── */
+  --bg-page: #05070d;
+  --bg-surface: #0a0f1a;
+  --bg-elevated: #111827;
+
+  /* ── Glass ──────────────────────────────────────────── */
+  --glass-fill: rgba(255, 255, 255, 0.04);
+  --glass-fill-hover: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-hover: rgba(255, 255, 255, 0.16);
+  --glass-blur: blur(20px) saturate(140%);
+  /* Top highlight so a card catches light along its upper edge. */
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.7);
+
+  /* ── The risk ramp is the brand. Every accent comes from it. ── */
+  --green: #22c55e;
+  --yellow: #eab308;
+  --orange: #f97316;
+  --red: #ef4444;
+
+  --green-dim: rgba(34, 197, 94, 0.16);
+  --yellow-dim: rgba(234, 179, 8, 0.16);
+  --orange-dim: rgba(249, 115, 22, 0.16);
+  --red-dim: rgba(239, 68, 68, 0.16);
+
+  /* ── Text: never pure white on pure black ───────────── */
+  --text-1: #f8fafc;
+  --text-2: #94a3b8;
+  --text-3: #64748b;
+
+  /* ── Type ───────────────────────────────────────────── */
+  --font-display: "Inter Tight", "General Sans", "Satoshi", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --display-size: clamp(2.75rem, 7vw, 5.5rem);
+  --display-tracking: -0.03em;
+  --display-leading: 0.95;
+
+  /* ── Shape ──────────────────────────────────────────── */
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+
+  /* ── Motion ─────────────────────────────────────────── */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-reveal: 0.7s;
+
+  --hairline: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.12),
+    transparent
+  );
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg-page);
+  color: var(--text-1);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numbers and technical strings are always mono and tabular — this single rule
+   does most of the work of making the interface read as an instrument. */
+.mono,
+.metric-value,
+.formula,
+.km,
+.rank {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.glass {
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+}
+
+.hairline {
+  height: 1px;
+  border: 0;
+  background: var(--hairline);
+  margin: 0;
+}
+
+/* Every interactive element keeps a visible focus ring. */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

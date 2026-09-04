@@ -51,6 +51,8 @@ async function get<T>(path: string): Promise<T> {
 
 export const api = {
   health: () => get<Health>("/health"),
+  segments: (limit = 500) =>
+    get<{ count: number; segments: SegmentSummary[] }>(`/risk/segments?limit=${limit}`),
   watchlist: (limit = 50) =>
     get<{ count: number; segments: SegmentSummary[] }>(
       `/risk/watchlist?limit=${limit}`,
