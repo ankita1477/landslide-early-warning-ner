@@ -96,3 +96,35 @@ def test_combine_keeps_the_better_located_duplicate():
 def test_combine_of_nothing_still_has_the_schema():
     empty = combine()
     assert list(empty.columns) == SCHEMA
+
+
+def _event(lon, lat, date, accuracy_m, source):
+    return gpd.GeoDataFrame(
+        {"occurred_on": [pd.Timestamp(date).date()], "geometry": [Point(lon, lat)],
+         "source": [source], "fatalities": [1], "trigger_type": ["rain"],
+         "confidence": ["x"], "accuracy_m": [accuracy_m], "verified": [False]},
+        crs="EPSG:4326")[SCHEMA]
+
+
+def test_near_duplicates_across_catalogues_collapse():
+    """HMA is derived from GLC: the same slide appears in both, slightly shifted.
+    Exact matching keeps both, duplicating a positive across train and test."""
+    glc = _event(88.500, 27.500, "2015-07-04", 25_000.0, "GLC")
+    hma = _event(88.503, 27.501, "2015-07-05", 1_000.0, "HMA")  # ~300 m, 1 day apart
+
+    out = combine(glc, hma)
+    assert len(out) == 1, "the same event was counted twice"
+    assert out["source"].iloc[0] == "HMA", "should keep the better-located copy"
+
+
+def test_genuinely_distinct_events_are_kept():
+    a = _event(88.50, 27.50, "2015-07-04", 1000.0, "GLC")
+    b = _event(88.70, 27.70, "2015-07-04", 1000.0, "GLC")   # ~28 km away
+    c = _event(88.50, 27.50, "2016-09-01", 1000.0, "GLC")   # same place, a year later
+    assert len(combine(a, b, c)) == 3
+
+
+def test_duplicate_collapse_is_not_transitive_across_far_events():
+    """A chain of near-neighbours must not collapse into one."""
+    events = [_event(88.50 + 0.05 * i, 27.50, "2015-07-04", 1000.0, "GLC") for i in range(3)]
+    assert len(combine(*events)) == 3

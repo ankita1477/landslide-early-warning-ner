@@ -20,7 +20,9 @@ import logging
 from pathlib import Path
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
+from scipy.spatial import cKDTree
 
 from ingestion.aoi import AOI
 
@@ -95,6 +97,40 @@ def load_glc(
     return out
 
 
+def load_hma(
+    shapefile: Path, aoi: AOI | None = None, max_accuracy_m: float = DEFAULT_MAX_ACCURACY_M
+) -> gpd.GeoDataFrame:
+    """NASA High Mountain Asia catalog — same structure as the GLC, shorter column
+    names, and extended to 2018. It is largely the GLC plus additions, so expect
+    heavy overlap; `combine` deduplicates."""
+    raw = gpd.read_file(shapefile)
+    if aoi is not None:
+        min_lon, min_lat, max_lon, max_lat = aoi.bbox
+        raw = raw.cx[min_lon:max_lon, min_lat:max_lat]
+    n_in_aoi = len(raw)
+
+    accuracy = raw["loc_accu"].map(ACCURACY_M)
+    kept = raw[accuracy.notna() & (accuracy <= max_accuracy_m)].copy()
+    kept["accuracy_m"] = accuracy.loc[kept.index]
+
+    out = gpd.GeoDataFrame(
+        {
+            "occurred_on": _parse_dates(kept["ev_date"]),
+            "geometry": kept.geometry,
+            "source": "HMA",
+            "fatalities": pd.to_numeric(kept.get("fatalities"), errors="coerce"),
+            "trigger_type": kept.get("ls_trig"),
+            "confidence": kept["loc_accu"],
+            "accuracy_m": kept["accuracy_m"],
+            "verified": False,
+        },
+        crs=raw.crs,
+    )[SCHEMA]
+    log.info("HMA: %d events in AOI, %d within %.0f m accuracy", n_in_aoi, len(out),
+             max_accuracy_m)
+    return out
+
+
 def load_local(path: Path, source: str = "GSI", aoi: AOI | None = None) -> gpd.GeoDataFrame:
     """Load a hand-exported inventory (GSI Bhukosh shapefile/GeoPackage/GeoJSON).
 
@@ -135,13 +171,50 @@ def load_local(path: Path, source: str = "GSI", aoi: AOI | None = None) -> gpd.G
     return out
 
 
-def combine(*frames: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """Stack inventories, preferring the better-located duplicate of the same event."""
+def combine(
+    *frames: gpd.GeoDataFrame, tolerance_m: float = 2_000.0, tolerance_days: int = 2
+) -> gpd.GeoDataFrame:
+    """Stack inventories, keeping the better-located copy of each event.
+
+    Matching on exact coordinates is useless here: the HMA catalog is derived
+    from the GLC, so the same landslide appears in both with slightly different
+    coordinates and sometimes a neighbouring date. Exact matching would keep
+    both, silently duplicating positives and letting the same event land in
+    train and test. Events are treated as the same when they are within
+    `tolerance_m` of each other and `tolerance_days` apart.
+    """
     frames = [f for f in frames if len(f)]
     if not frames:
         return gpd.GeoDataFrame(columns=SCHEMA, geometry="geometry", crs="EPSG:4326")
-    combined = pd.concat(frames, ignore_index=True)
-    combined = combined.sort_values("accuracy_m").drop_duplicates(
-        subset=["occurred_on", "geometry"], keep="first"
+
+    combined = gpd.GeoDataFrame(
+        pd.concat(frames, ignore_index=True), geometry="geometry", crs=frames[0].crs
     )
-    return gpd.GeoDataFrame(combined, geometry="geometry", crs=frames[0].crs)
+    # Sort so the best-located copy of an event is always seen first and kept.
+    combined = combined.sort_values("accuracy_m", kind="stable").reset_index(drop=True)
+
+    metric = combined.to_crs(combined.estimate_utm_crs())
+    xs = metric.geometry.x.to_numpy()
+    ys = metric.geometry.y.to_numpy()
+    days = pd.to_datetime(combined["occurred_on"], errors="coerce").to_numpy("datetime64[D]")
+
+    tree = cKDTree(np.column_stack([xs, ys]))
+    duplicate = np.zeros(len(combined), dtype=bool)
+    for i in range(len(combined)):
+        if duplicate[i]:
+            continue
+        for j in tree.query_ball_point([xs[i], ys[i]], tolerance_m):
+            if j <= i or duplicate[j]:
+                continue
+            gap = abs((days[j] - days[i]).astype("timedelta64[D]").astype(float))
+            if np.isnan(gap) or gap <= tolerance_days:
+                duplicate[j] = True
+
+    out = combined[~duplicate].reset_index(drop=True)
+    if duplicate.any():
+        log.info(
+            "combined %d records -> %d unique events (%d cross-catalogue duplicates "
+            "within %.0f m and %d days)",
+            len(combined), len(out), int(duplicate.sum()), tolerance_m, tolerance_days,
+        )
+    return gpd.GeoDataFrame(out, geometry="geometry", crs=frames[0].crs)
