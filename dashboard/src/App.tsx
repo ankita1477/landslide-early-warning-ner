@@ -8,18 +8,6 @@ import { api, type Health, type SegmentSummary, type TierThreshold } from "./api
 import { TIER_COLOR, TIER_ORDER } from "./theme";
 import "./App.css";
 
-/** Hash routing rather than a router dependency: two views do not justify one,
- *  and the hash keeps the dashboard linkable and the back button working. */
-function useHashRoute() {
-  const [hash, setHash] = useState(window.location.hash);
-  useEffect(() => {
-    const onChange = () => setHash(window.location.hash);
-    window.addEventListener("hashchange", onChange);
-    return () => window.removeEventListener("hashchange", onChange);
-  }, []);
-  return hash;
-}
-
 export default function App() {
   const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
   const [watchlist, setWatchlist] = useState<SegmentSummary[]>([]);
@@ -27,7 +15,6 @@ export default function App() {
   const [health, setHealth] = useState<Health | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const route = useHashRoute();
 
   useEffect(() => {
     Promise.all([api.geojson(), api.watchlist(25), api.tiers(), api.health()])
@@ -40,27 +27,30 @@ export default function App() {
       .catch((e) => setError(String(e)));
   }, []);
 
-  if (route !== "#/dashboard") {
-    return (
-      <Intro
-        onEnter={() => {
-          window.location.hash = "#/dashboard";
-        }}
-        segmentsLoaded={health?.segments_loaded ?? null}
-      />
-    );
-  }
-
   const counts = TIER_ORDER.map((tier) => ({
     tier,
     n: (geojson?.features ?? []).filter((f: Feature) => f.properties?.tier === tier).length,
   }));
 
   return (
-    <div className="app">
+    <div className="page">
+      <Intro
+        onEnter={() =>
+          document.getElementById("dashboard")?.scrollIntoView({ behavior: "smooth" })
+        }
+        segmentsLoaded={health?.segments_loaded ?? null}
+      />
+
+      <div className="app" id="dashboard">
       <header>
         <div className="brand">
-          <a className="back" href="#/" title="Back to the overview">←</a>
+          <button
+            className="back"
+            title="Back to the overview"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          >
+            ↑
+          </button>
           <div>
             <h1>NH-10 Landslide Risk</h1>
             <p className="muted">Sevoke – Gangtok corridor</p>
@@ -121,7 +111,8 @@ export default function App() {
         <aside className="right">
           <SegmentPanel segmentId={selectedId} />
         </aside>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
