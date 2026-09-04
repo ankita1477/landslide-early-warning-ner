@@ -46,11 +46,11 @@ const LIMITS = [
   "No InSAR exists before March 2025, so Layer 3 cannot improve any historical result.",
 ];
 
-export function Intro({ onEnter, segmentsLoaded }: Props) {
+export function Landing({ onEnter, segmentsLoaded }: Props) {
   return (
-    <div className="intro">
-      <div className="intro-inner">
-        <header className="intro-head">
+    <div className="landing">
+      <div className="landing-inner">
+        <header className="landing-head">
           <div className="tier-strip">
             {(["green", "yellow", "orange", "red"] as const).map((tier) => (
               <span key={tier} style={{ background: TIER_COLOR[tier] }} />
@@ -117,7 +117,7 @@ export function Intro({ onEnter, segmentsLoaded }: Props) {
           </p>
         </div>
 
-        <footer className="intro-foot">
+        <footer className="landing-foot">
           Copernicus GLO-30 · OpenStreetMap · CHIRPS &amp; GPM IMERG via Google Earth
           Engine · Sentinel-1 via COMET-LiCS · landslide inventory from the
           multi-temporal Sikkim catalogue (Zenodo, CC-BY)
