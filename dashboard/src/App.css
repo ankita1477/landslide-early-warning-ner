@@ -153,109 +153,6 @@
 .landing-foot { margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--glass-border);
   color: var(--text-3); font-size: 11.5px; line-height: 1.7; }
 
-/* ── Dashboard console ─────────────────────────────────────── */
-.console { position: relative; z-index: 1; height: 100vh; display: flex;
-  flex-direction: column; }
-.console-head { display: flex; align-items: center; gap: 18px; padding: 12px 20px;
-  background: rgba(10,15,26,.72); border-bottom: 1px solid var(--glass-border);
-  backdrop-filter: var(--glass-blur); flex: none; }
-.back { background: var(--glass-fill); border: 1px solid var(--glass-border);
-  color: var(--text-2); cursor: pointer; font-size: 16px; line-height: 1;
-  padding: 8px 12px; border-radius: var(--radius-control); }
-.back:hover { color: var(--text-1); border-color: var(--glass-border-hover); }
-.console-title h1 { font-family: var(--font-display); font-size: 16px; margin: 0;
-  letter-spacing: -0.01em; }
-.console-sub { font-size: 11px; color: var(--text-3); margin: 2px 0 0; }
-.band-pills { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
-.console-status { display: flex; align-items: center; gap: 12px; }
-.live { color: var(--green); background: var(--green-dim); border-color: rgba(34,197,94,.3); }
-.live.degraded { color: var(--orange); background: var(--orange-dim); }
-.live-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor;
-  animation: pulse 2.4s ease-in-out infinite; }
-@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); }
-  50% { opacity: .35; transform: scale(.82); } }
-.scored-at { font-size: 11px; color: var(--text-3); }
-
-.pane-tabs { display: none; }
-
-.console-body { display: grid; grid-template-columns: 292px 1fr 352px; flex: 1;
-  min-height: 0; }
-.pane { min-height: 0; overflow-y: auto; }
-.pane-left { border-right: 1px solid var(--glass-border); background: rgba(10,15,26,.5); }
-.pane-right { border-left: 1px solid var(--glass-border); background: rgba(10,15,26,.5); }
-.pane-map { overflow: hidden; position: relative; }
-
-.watchlist { padding: 16px 14px; }
-.watchlist-sub { font-size: 11.5px; color: var(--text-3); margin: 0 0 12px; }
-.watchlist ol { list-style: none; margin: 0; padding: 0; }
-.wl-row { display: flex; align-items: center; gap: 10px; width: 100%; cursor: pointer;
-  background: none; border: 0; border-left: 2px solid transparent;
-  border-radius: 8px; padding: 8px 10px; color: var(--text-1); font: inherit;
-  text-align: left; transition: transform .2s var(--ease-out-expo), background .2s; }
-.wl-row:hover { background: var(--glass-fill); transform: translateX(2px); }
-.wl-row.selected { background: var(--glass-fill-hover); border-left-color: var(--band); }
-.rank { color: var(--text-3); font-size: 11px; width: 20px; }
-.km { font-size: 13px; }
-.wl-band { margin-left: auto; color: var(--text-3); font-size: 11px; text-transform: capitalize; }
-
-/* ── Map ───────────────────────────────────────────────────── */
-.map-wrap { position: relative; width: 100%; height: 100%; }
-.map { width: 100%; height: 100%; }
-/* OSM raster is a light style; inverting it puts the basemap inside the palette
-   without needing a keyed vector style. */
-.map .maplibregl-canvas { filter: invert(1) hue-rotate(180deg) saturate(.55) brightness(.86)
-  contrast(1.08); }
-.maplibregl-ctrl-attrib { background: rgba(5,7,13,.72) !important; color: var(--text-3) !important;
-  font-size: 10px !important; }
-.maplibregl-ctrl-attrib a { color: var(--text-2) !important; }
-.map-failed { display: grid; place-items: center; text-align: center; padding: 24px;
-  background: var(--bg-surface); }
-
-.map-controls { position: absolute; top: 16px; right: 16px; display: flex;
-  flex-direction: column; overflow: hidden; }
-.map-controls button { width: 38px; height: 38px; background: none; border: 0;
-  color: var(--text-2); font-size: 16px; cursor: pointer;
-  border-bottom: 1px solid var(--glass-border); }
-.map-controls button:last-child { border-bottom: 0; }
-.map-controls button:hover { background: var(--glass-fill-hover); color: var(--text-1); }
-
-/* ── Detail pane ───────────────────────────────────────────── */
-.detail { padding: 18px 16px; }
-.detail.empty { display: grid; place-items: center; height: 100%; text-align: center;
-  color: var(--text-3); }
-.empty-art { width: 180px; margin-bottom: 14px; }
-.detail.empty p { max-width: 30ch; font-size: 13px; margin: 0; }
-
-.detail-head { display: flex; align-items: flex-start; gap: 12px; }
-.detail-km { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
-.detail-highway { font-size: 11px; color: var(--text-3); margin-top: 2px; }
-.band-chip { margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 12px; border-radius: var(--radius-pill); font-size: 11px;
-  font-weight: 700; text-transform: uppercase; color: rgba(5,7,13,.9); }
-
-.detail-risk { display: flex; align-items: baseline; gap: 9px; margin: 18px 0 22px; }
-.detail-risk-value { font-size: 28px; font-weight: 600; }
-.detail-risk-label { font-size: 11.5px; color: var(--text-3); }
-
-.factors { display: grid; gap: 13px; margin-bottom: 24px; }
-.factor-head { display: flex; justify-content: space-between; font-size: 12.5px;
-  color: var(--text-2); margin-bottom: 6px; }
-.factor-head span:last-child { color: var(--text-1); }
-.factor-track { height: 6px; background: rgba(255,255,255,.07); border-radius: 3px;
-  overflow: hidden; }
-.factor-fill { height: 100%; border-radius: 3px; }
-
-.sparkline { margin-bottom: 22px; }
-.spark-head { display: flex; justify-content: space-between; font-size: 10.5px;
-  color: var(--text-3); margin-bottom: 6px; }
-.sparkline svg { width: 100%; height: 44px; }
-.spark-foot { font-size: 10px; color: var(--text-3); margin-top: 4px; }
-
-.facts { margin: 0; padding-top: 14px; border-top: 1px solid var(--glass-border); }
-.facts > div { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; }
-.facts dt { color: var(--text-3); }
-.facts dd { margin: 0; color: var(--text-1); }
-
 /* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 1100px) {
   .metrics { grid-template-columns: repeat(2, 1fr); }
@@ -290,4 +187,331 @@
   .console[data-pane="list"] .pane-map { display: none; }
   .console[data-pane="list"] .pane-left { display: block; border-right: 0; }
   .band-pills, .scored-at { display: none; }
+}
+
+/* ══ Operations console ══════════════════════════════════════
+   The calm end of the same system: no drift, no scroll choreography.
+   Motion is confined to state changes. */
+.console { position: relative; z-index: 1; height: 100vh; display: grid;
+  grid-template-rows: 56px auto 1fr; background: var(--bg-page); }
+.console .micro { font-size: 10px; text-transform: uppercase; letter-spacing: .14em;
+  color: var(--text-3); font-weight: 600; margin: 0; }
+.tiny { font-size: 10.5px; }
+
+/* ── Command bar ───────────────────────────────────────────── */
+.command-bar { display: flex; align-items: center; gap: 18px; padding: 0 16px;
+  background: rgba(10,15,26,.72); backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border); }
+.cb-left { display: flex; align-items: center; gap: 12px; }
+.command-bar h1 { font-family: var(--font-display); font-size: 15px; margin: 0;
+  letter-spacing: -0.01em; }
+.cb-sub { font-size: 10.5px; color: var(--text-3); margin: 1px 0 0; }
+.icon-btn { background: var(--glass-fill); border: 1px solid var(--glass-border);
+  color: var(--text-2); width: 30px; height: 30px; border-radius: var(--radius-control);
+  cursor: pointer; font-size: 14px; line-height: 1; }
+.icon-btn:hover { color: var(--text-1); border-color: var(--glass-border-hover); }
+
+.cb-center { display: flex; gap: 7px; margin: 0 auto; }
+.band-chip { display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  font-size: 11.5px; padding: 5px 11px; border-radius: var(--radius-pill);
+  border: 1px solid var(--glass-border); background: var(--glass-fill);
+  color: var(--text-1); text-transform: capitalize; font-family: var(--font-body);
+  transition: opacity .2s, border-color .2s, background .2s; }
+.band-chip .chip-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--band); }
+.band-chip.on { border-color: color-mix(in srgb, var(--band) 55%, transparent);
+  background: color-mix(in srgb, var(--band) 14%, transparent); }
+.band-chip.off { opacity: .4; }
+.chip-n { color: var(--text-2); }
+.chip-n.struck { text-decoration: line-through; }
+.band-chip.static { cursor: default; color: rgba(5,7,13,.92); font-weight: 700;
+  text-transform: uppercase; font-size: 10.5px; border: 0; }
+.chip-dot.ink { background: rgba(5,7,13,.5); }
+
+.cb-right { display: flex; align-items: center; gap: 12px; }
+.scored { font-size: 10.5px; color: var(--text-3); }
+.status { display: inline-flex; align-items: center; gap: 7px; font-size: 11px;
+  padding: 4px 10px; border-radius: var(--radius-pill); border: 1px solid var(--glass-border); }
+.status.live { color: var(--green); background: var(--green-dim); }
+.status.stale { color: var(--orange); background: var(--orange-dim); }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status.live .status-dot { animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+/* ── Date scrubber (disabled: no history endpoint) ─────────── */
+.scrubber { display: flex; align-items: center; gap: 14px; padding: 7px 16px;
+  border-bottom: 1px solid var(--glass-border); background: rgba(10,15,26,.4);
+  opacity: .5; }
+.scrub-label { font-size: 10px; color: var(--text-3); text-transform: uppercase;
+  letter-spacing: .1em; }
+.scrub-track { display: flex; gap: 3px; flex: 1; }
+.scrub-tick { flex: 1; height: 12px; border-radius: 1px; background: rgba(255,255,255,.06); }
+.scrub-note { font-size: 10.5px; color: var(--text-3); }
+
+.pane-tabs { display: none; }
+
+/* ── Grid ──────────────────────────────────────────────────── */
+.console-grid { display: grid; min-height: 0;
+  grid-template-columns: 320px 1fr 420px;
+  grid-template-rows: 1fr 120px;
+  grid-template-areas: "list map inspector" "list strip inspector"; }
+.region { min-height: 0; min-width: 0; }
+.region-list { grid-area: list; border-right: 1px solid var(--glass-border);
+  background: rgba(10,15,26,.55); display: flex; flex-direction: column; }
+.region-map { grid-area: map; position: relative; overflow: hidden; }
+.region-strip { grid-area: strip; border-top: 1px solid var(--glass-border);
+  background: rgba(10,15,26,.55); }
+.region-inspector { grid-area: inspector; border-left: 1px solid var(--glass-border);
+  background: rgba(10,15,26,.55); overflow-y: auto; }
+
+/* ── Watchlist ─────────────────────────────────────────────── */
+.watchlist { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.wl-head { padding: 12px 14px 8px; border-bottom: 1px solid var(--glass-border); }
+.wl-count { font-size: 11.5px; color: var(--text-2); margin: 5px 0 9px; }
+.sorts { display: flex; gap: 5px; }
+.sort { background: var(--glass-fill); border: 1px solid var(--glass-border);
+  color: var(--text-3); font: inherit; font-size: 11px; padding: 3px 10px;
+  border-radius: var(--radius-pill); cursor: pointer; }
+.sort.on { color: var(--text-1); background: var(--glass-fill-hover);
+  border-color: var(--glass-border-hover); }
+.sort.disabled { opacity: .35; cursor: not-allowed; }
+.wl-rows { list-style: none; margin: 0; padding: 6px 8px; overflow-y: auto; flex: 1; }
+.wl-row { display: flex; align-items: center; gap: 9px; width: 100%; height: 48px;
+  cursor: pointer; background: none; border: 0; border-left: 3px solid transparent;
+  border-radius: 8px; padding: 0 10px; color: var(--text-1); font: inherit;
+  text-align: left; transition: background .18s, transform .18s var(--ease-out-expo); }
+.wl-row:hover { background: rgba(255,255,255,.04); transform: translateX(2px); }
+.wl-row.selected { background: var(--glass-fill-hover); border-left-color: var(--band); }
+.wl-rank { color: var(--text-3); font-size: 11px; width: 20px; }
+.wl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--band); flex: none; }
+.wl-km { font-size: 13px; }
+.wl-band { margin-left: auto; color: var(--text-2); font-size: 11px; text-transform: capitalize; }
+.wl-empty { padding: 28px 16px; text-align: center; color: var(--text-2); font-size: 13px; }
+.wl-foot { display: flex; gap: 8px; padding: 10px 12px;
+  border-top: 1px solid var(--glass-border); }
+.ghost { background: var(--glass-fill); border: 1px solid var(--glass-border);
+  color: var(--text-2); font: inherit; font-size: 11.5px; padding: 6px 11px;
+  border-radius: var(--radius-control); cursor: pointer; }
+.ghost:hover { color: var(--text-1); border-color: var(--glass-border-hover); }
+.ghost.tiny { font-size: 10.5px; padding: 4px 9px; }
+
+/* ── Map ───────────────────────────────────────────────────── */
+.map-pane { position: relative; width: 100%; height: 100%; }
+.map { width: 100%; height: 100%; }
+/* The light OSM raster fights the dark UI; inverting it brings the basemap
+   inside the palette without needing a keyed vector style. */
+.map .maplibregl-canvas { filter: invert(1) hue-rotate(180deg) saturate(.4) brightness(.85); }
+.maplibregl-ctrl-attrib { background: rgba(5,7,13,.7) !important; font-size: 9.5px !important; }
+.maplibregl-ctrl-attrib a { color: var(--text-3) !important; }
+.map-failed { display: grid; place-items: center; text-align: center; padding: 24px; }
+
+.layer-switch { position: absolute; top: 12px; left: 12px; display: flex; padding: 3px;
+  gap: 2px; }
+.layer-switch button { background: none; border: 0; color: var(--text-3); font: inherit;
+  font-size: 11px; padding: 5px 10px; border-radius: 8px; cursor: pointer; }
+.layer-switch button.on { color: var(--text-1); background: var(--glass-fill-hover); }
+
+.map-legend { position: absolute; bottom: 12px; left: 12px; padding: 10px 12px;
+  display: grid; gap: 5px; }
+.legend-row { display: flex; align-items: center; gap: 8px; font-size: 11px;
+  color: var(--text-2); text-transform: capitalize; }
+.legend-note { font-size: 9.5px; color: var(--text-3); margin-top: 2px; }
+
+.map-controls { position: absolute; bottom: 12px; right: 12px; display: flex;
+  flex-direction: column; overflow: hidden; }
+.map-controls button { width: 34px; height: 34px; background: none; border: 0;
+  color: var(--text-2); font-size: 14px; cursor: pointer;
+  border-bottom: 1px solid var(--glass-border); }
+.map-controls button:last-child { border-bottom: 0; }
+.map-controls button:hover { background: var(--glass-fill-hover); color: var(--text-1); }
+
+.map-tip { position: absolute; pointer-events: none; background: rgba(5,7,13,.92);
+  border: 1px solid var(--glass-border); border-radius: 8px; padding: 7px 10px;
+  font-size: 11px; color: var(--text-1); line-height: 1.5; z-index: 4; }
+
+/* ── Corridor strip ────────────────────────────────────────── */
+.strip { height: 100%; display: flex; flex-direction: column; padding: 8px 12px 4px;
+  position: relative; }
+.strip-head { display: flex; align-items: center; gap: 12px; margin-bottom: 2px; }
+.strip-svg { width: 100%; flex: 1; min-height: 0; cursor: crosshair; user-select: none; }
+.strip-tick { font-size: 9px; }
+.strip-tip { position: absolute; top: 6px; right: 12px; font-size: 10.5px;
+  color: var(--text-2); background: rgba(5,7,13,.9); padding: 3px 8px; border-radius: 6px;
+  border: 1px solid var(--glass-border); }
+
+/* ── Inspector ─────────────────────────────────────────────── */
+.inspector { padding: 16px 16px 24px; }
+.inspector.empty { display: grid; place-items: center; height: 100%; text-align: center;
+  align-content: center; gap: 6px; }
+.empty-art { width: 190px; opacity: .7; }
+.empty-title { font-size: 14px; color: var(--text-1); margin: 6px 0 0; }
+.empty-help { font-size: 12px; color: var(--text-3); margin: 0; max-width: 30ch; }
+
+.insp-head { display: flex; align-items: flex-start; gap: 12px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--glass-border); }
+/* Proportional figures: tabular makes a large display number look loose. */
+.insp-km { font-family: var(--font-display); font-size: 48px; font-weight: 600;
+  letter-spacing: -0.03em; line-height: 1; }
+.insp-coords { font-size: 10.5px; color: var(--text-3); margin-top: 6px; }
+
+.panel { padding: 16px 0; border-bottom: 1px solid var(--glass-border); }
+.panel-note { font-size: 10.5px; color: var(--text-3); margin: 8px 0 0; line-height: 1.5; }
+.insp-score { font-size: 26px; font-weight: 600; margin: 8px 0 10px; }
+
+.meter-track { position: relative; height: 10px; border-radius: 5px;
+  background: rgba(255,255,255,.07); overflow: visible; }
+.meter-fill { height: 100%; border-radius: 5px; }
+.meter-tick { position: absolute; top: -3px; width: 1px; height: 16px;
+  background: var(--text-3); }
+.meter-legend { display: flex; justify-content: space-between; font-size: 9.5px;
+  color: var(--text-3); margin-top: 8px; }
+
+.contrib-bar { display: flex; gap: 2px; height: 24px; }
+.contrib-seg { border-radius: 3px; min-width: 2px; }
+.contrib-legend { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.contrib-legend li { display: flex; align-items: center; gap: 9px; font-size: 12px; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.legend-label { color: var(--text-2); }
+/* Text never wears a data colour; identity comes from the swatch beside it. */
+.legend-value { margin-left: auto; color: var(--text-1); }
+
+.rain-chart { width: 100%; height: 92px; margin-top: 8px; }
+.chart-foot { display: flex; justify-content: space-between; font-size: 10px;
+  color: var(--text-3); }
+
+.facts { margin: 10px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+.facts > div { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0;
+  border-bottom: 1px solid var(--chart-grid); font-size: 12px; }
+.facts dt { color: var(--text-3); }
+.facts dd { margin: 0; color: var(--text-1); }
+.fact-line { font-size: 12.5px; color: var(--text-2); margin: 8px 0 0; }
+.insp-actions { display: flex; flex-wrap: wrap; gap: 7px; padding-top: 16px; }
+.pane-error { padding: 20px 0; }
+.skeleton-stack { height: 320px; border-radius: var(--radius-card);
+  background: linear-gradient(100deg, rgba(255,255,255,.03) 30%,
+    rgba(255,255,255,.07) 50%, rgba(255,255,255,.03) 70%);
+  background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ── Modals ────────────────────────────────────────────────── */
+.modal { position: fixed; inset: 6vh 8vw; z-index: 40; display: flex;
+  flex-direction: column; background: rgba(10,15,26,.97);
+  border: 1px solid var(--glass-border); border-radius: var(--radius-card);
+  box-shadow: var(--glass-shadow); backdrop-filter: var(--glass-blur); }
+.modal-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+  border-bottom: 1px solid var(--glass-border); }
+.modal-head h2 { font-size: 15px; margin: 0; font-family: var(--font-display); }
+.modal-head .ghost { margin-left: auto; }
+.table-scroll { overflow: auto; padding: 0 18px 18px; }
+.modal table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.modal th { text-align: left; color: var(--text-3); font-weight: 600; font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: .08em; padding: 10px 8px;
+  position: sticky; top: 0; background: rgba(10,15,26,.98); }
+.modal td { padding: 7px 8px; border-bottom: 1px solid var(--chart-grid);
+  color: var(--text-2); }
+.modal td.mono { color: var(--text-1); }
+.shortcuts { inset: 20vh 30vw; }
+.keys { margin: 0; padding: 18px; display: grid; gap: 10px; }
+.keys > div { display: flex; gap: 16px; font-size: 12.5px; }
+.keys dt { color: var(--text-1); min-width: 68px; }
+.keys dd { margin: 0; color: var(--text-2); }
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 1280px) {
+  /* Inspector becomes an overlay drawer rather than stealing map width. */
+  .console-grid { grid-template-columns: 300px 1fr;
+    grid-template-areas: "list map" "list strip"; }
+  .region-inspector { position: fixed; top: 0; right: 0; bottom: 0; width: 400px;
+    z-index: 20; background: rgba(10,15,26,.97); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow); }
+}
+
+@media (max-width: 768px) {
+  .console { grid-template-rows: auto auto 1fr; }
+  .command-bar { flex-wrap: wrap; padding: 8px 12px; gap: 10px; }
+  .cb-center { margin: 0; width: 100%; order: 3; overflow-x: auto; }
+  .cb-right { margin-left: auto; }
+  .scored { display: none; }
+
+  .pane-tabs { display: flex; gap: 6px; padding: 8px 12px;
+    border-bottom: 1px solid var(--glass-border); }
+  .pane-tabs button { flex: 1; padding: 8px; background: var(--glass-fill);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-control);
+    color: var(--text-2); font: inherit; font-size: 12.5px; cursor: pointer; }
+  .pane-tabs button.on { color: var(--text-1); background: var(--glass-fill-hover); }
+
+  .console-grid { display: block; position: relative; }
+  .region { position: absolute; inset: 0; }
+  .region-strip, .region-inspector { position: absolute; }
+  .region-inspector { width: auto; box-shadow: none; }
+  .console[data-pane="map"] .region-list,
+  .console[data-pane="map"] .region-inspector,
+  .console[data-pane="list"] .region-map,
+  .console[data-pane="list"] .region-strip,
+  .console[data-pane="list"] .region-inspector,
+  .console[data-pane="detail"] .region-list,
+  .console[data-pane="detail"] .region-map,
+  .console[data-pane="detail"] .region-strip { display: none; }
+  .console[data-pane="map"] .region-strip { top: auto; height: 110px; }
+  .console[data-pane="map"] .region-map { bottom: 110px; }
+  .modal { inset: 4vh 4vw; }
+  .shortcuts { inset: 12vh 6vw; }
+}
+
+/* ── Corrections ───────────────────────────────────────────── */
+
+/* Panels that sit over the map cannot rely on a 4% white fill: the basemap
+   behind them is far brighter than the page, and backdrop-filter is not
+   guaranteed. They get their own opaque ground so the text stays legible. */
+.layer-switch, .map-legend, .map-controls {
+  /* Near-opaque, not merely tinted: at 0.86 the basemap still read through
+     enough for a place name to collide with the legend heading. */
+  background: rgba(5, 7, 13, 0.94);
+  border: 1px solid var(--glass-border);
+}
+.map-legend .micro { margin-bottom: 3px; }
+
+/* The strip has a fixed 120px row, so its chrome must not push the chart out. */
+.strip { padding: 6px 12px 2px; gap: 2px; }
+.strip-head { margin-bottom: 0; }
+.strip-svg { min-height: 0; }
+
+@media (max-width: 768px) {
+  /* Four children — command bar, scrubber, tabs, grid — need four rows.
+     With only three defined the tabs took the 1fr row and grew to fill it. */
+  .console { grid-template-rows: auto auto auto 1fr; }
+
+  /* Chips get their own full-width scrolling row rather than competing with
+     the status cluster for the same line. */
+  .command-bar { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; }
+  .cb-left { grid-column: 1; }
+  .cb-right { grid-column: 2; justify-self: end; gap: 8px; }
+  .cb-center { grid-column: 1 / -1; width: 100%; overflow-x: auto;
+    padding-bottom: 2px; scrollbar-width: none; }
+  .cb-center::-webkit-scrollbar { display: none; }
+  .band-chip { flex: none; }
+  .status { font-size: 10px; padding: 3px 8px; }
+  .scrubber { gap: 8px; }
+  .scrub-note { display: none; }
+}
+
+/* Nothing in the command bar may force the page wider than the viewport —
+   an overflow there clipped the pane tabs and the layer switcher below it. */
+.console, .console-grid, .command-bar, .cb-left, .cb-right { min-width: 0; }
+.status { white-space: nowrap; }
+
+@media (max-width: 768px) {
+  /* The band chips already account for all 116 segments, so the status pill
+     drops to its essential word rather than pushing the layout sideways. */
+  .wide-only { display: none; }
+  .cb-left h1 { font-size: 14px; }
+  .layer-switch { max-width: calc(100vw - 24px); overflow-x: auto;
+    scrollbar-width: none; }
+  .layer-switch::-webkit-scrollbar { display: none; }
+  .layer-switch button { white-space: nowrap; }
+}
+
+/* Data-bearing dimensions are set directly and eased by CSS, so the value is
+   correct whether or not the transition ever runs. */
+.meter-fill, .contrib-seg {
+  transition: width .55s var(--ease-out-expo), flex-grow .5s var(--ease-out-expo);
 }

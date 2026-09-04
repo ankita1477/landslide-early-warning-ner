@@ -121,3 +121,29 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Categorical palette: model layer identity, not severity ──────────
+   Deliberately separate from the risk ramp. Colouring a contribution bar
+   with the status ramp would spend the identity channel re-encoding
+   severity that the bar length already shows, and would make a
+   "susceptibility" segment read as a risk band. */
+:root {
+  --layer-susceptibility: #3987e5;
+  --layer-trigger: #d95926;
+  --layer-deformation: #199e70;
+  --layer-exposure: #c98500;
+
+  /* Chart furniture is recessive: hairline, solid, one step off the surface. */
+  --chart-grid: rgba(255, 255, 255, 0.07);
+  --chart-wash: 0.1;
+}
+
+/* High-contrast bands: order comes from lightness alone, so it survives any
+   colour vision. Opt-in, because the traffic-light ramp is what disaster
+   management convention expects. */
+[data-bands="mono"] {
+  --green: #6b5a1f;
+  --yellow: #9a7c14;
+  --orange: #cfa227;
+  --red: #ffd970;
+}

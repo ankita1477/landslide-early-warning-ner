@@ -5,7 +5,7 @@ import Lenis from "lenis";
 import { Aurora } from "./components/Aurora";
 import { Landing } from "./components/landing/Landing";
 import { Console } from "./components/dashboard/Console";
-import { api, type Health, type SegmentSummary } from "./api/client";
+import { api, type Health, type SegmentSummary, type TierThreshold } from "./api/client";
 import { prefersReducedMotion, routeTransition } from "./lib/motion";
 import "./styles/tokens.css";
 import "./App.css";
@@ -28,19 +28,21 @@ export default function App() {
   const [all, setAll] = useState<SegmentSummary[]>([]);
   const [health, setHealth] = useState<Health | null>(null);
   const [computedAt, setComputedAt] = useState<string | null>(null);
+  const [thresholds, setThresholds] = useState<TierThreshold[]>([]);
   const [error, setError] = useState<string | null>(null);
   const route = useHashRoute();
   const onDashboard = route === "#/dashboard";
 
   useEffect(() => {
     Promise.all([
-      api.geojson(), api.watchlist(25), api.health(), api.segments(),
+      api.geojson(), api.watchlist(25), api.health(), api.segments(), api.tiers(),
     ])
-      .then(([g, w, h, s]) => {
+      .then(([g, w, h, s, t]) => {
         setGeojson(g);
         setWatchlist(w.segments);
         setHealth(h);
         setAll(s.segments);
+        setThresholds(t);
       })
       .catch((e) => setError(String(e)));
   }, []);
@@ -88,9 +90,9 @@ export default function App() {
         {onDashboard ? (
           <motion.div key="dashboard" variants={routeTransition}
                       initial="hidden" animate="visible" exit="exit">
-            <Console geojson={geojson} watchlist={watchlist} allSegments={all}
-                     health={health}
-                     computedAt={computedAt}
+            <Console geojson={geojson} allSegments={all} health={health}
+                     thresholds={thresholds} computedAt={computedAt}
+                     loadError={error}
                      onBack={() => { window.location.hash = "#/"; }} />
           </motion.div>
         ) : (
