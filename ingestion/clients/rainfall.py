@@ -61,6 +61,12 @@ def _daily_collection(source: str, start: str, end: str, region):
 MAX_ROWS_PER_REQUEST = 4500
 
 
+def _ee_date(value) -> str:
+    """Earth Engine rejects 'YYYY-MM-DD HH:MM:SS', which is exactly what str()
+    gives for a pandas Timestamp. Normalise every date the callers pass."""
+    return pd.Timestamp(value).strftime("%Y-%m-%d")
+
+
 def daily_at_points(
     points: gpd.GeoDataFrame, start: str, end: str, source: str = "chirps",
     id_field: str | None = None,
@@ -69,6 +75,7 @@ def daily_at_points(
 
     Splits the date range so no single request exceeds what getInfo will return.
     """
+    start, end = _ee_date(start), _ee_date(end)
     n_days = (pd.Timestamp(end) - pd.Timestamp(start)).days
     rows_per_day = max(len(points), 1)
     max_days = max(1, MAX_ROWS_PER_REQUEST // rows_per_day)
@@ -104,6 +111,7 @@ def _daily_at_points_once(
     if source not in SOURCES:
         raise ValueError(f"unknown source {source!r}; expected one of {sorted(SOURCES)}")
     initialize()
+    start, end = _ee_date(start), _ee_date(end)
 
     wgs = points.to_crs("EPSG:4326")
     features = [
@@ -221,3 +229,65 @@ def summarise_antecedent(windows: pd.DataFrame, spans=(1, 3, 7, 15, 30)) -> pd.D
             row[f"rain_{span}d_mm"] = float(recent["precip_mm"].sum())
         rows.append(row)
     return pd.DataFrame(rows).sort_values("occurred_on").reset_index(drop=True)
+
+
+def subdaily_at_points(
+    points: gpd.GeoDataFrame, start: str, end: str, id_field: str | None = None,
+) -> pd.DataFrame:
+    """Half-hourly IMERG rainfall (mm) at each point.
+
+    Needed for intensity-duration thresholds, which daily data cannot support:
+    aggregating to days quantises storm duration to 24-hour steps and replaces
+    peak intensity with a daily mean, leaving the short-duration end of the
+    curve — where the power law gets its slope — entirely absent.
+
+    This is expensive (48 images per day), so keep the window short.
+    """
+    import ee
+
+    initialize()
+    start, end = _ee_date(start), _ee_date(end)
+    collection_id, band, scale, _ = SOURCES["imerg"]
+
+    wgs = points.to_crs("EPSG:4326")
+    features = [
+        ee.Feature(
+            ee.Geometry.Point([geom.x, geom.y]),
+            {"pid": str(row[id_field]) if id_field else str(i)},
+        )
+        for i, (geom, row) in enumerate(
+            zip(wgs.geometry, wgs.to_dict("records"), strict=True)
+        )
+    ]
+    fc = ee.FeatureCollection(features)
+
+    collection = (
+        ee.ImageCollection(collection_id).select(band)
+        .filterDate(start, end).filterBounds(fc.geometry().bounds())
+    )
+
+    def sample(image):
+        stamp = image.date().format("YYYY-MM-dd HH:mm")
+        return image.reduceRegions(
+            collection=fc, reducer=ee.Reducer.first(), scale=scale
+        ).map(lambda f: f.set("ts", stamp))
+
+    rows = collection.map(sample).flatten().getInfo()["features"]
+    frame = pd.DataFrame(
+        [
+            {
+                "pid": r["properties"].get("pid"),
+                "ts": r["properties"].get("ts"),
+                # IMERG is a rate in mm/hr on 30-minute steps.
+                "rate_mm_h": r["properties"].get("first"),
+            }
+            for r in rows
+        ]
+    )
+    if frame.empty:
+        return frame
+    frame["ts"] = pd.to_datetime(frame["ts"])
+    frame["rate_mm_h"] = pd.to_numeric(frame["rate_mm_h"], errors="coerce")
+    frame["precip_mm"] = frame["rate_mm_h"] * 0.5
+    log.info("imerg: %d half-hourly samples over %s..%s", len(frame), start, end)
+    return frame.sort_values(["pid", "ts"]).reset_index(drop=True)

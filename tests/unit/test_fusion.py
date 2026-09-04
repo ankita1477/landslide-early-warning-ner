@@ -105,3 +105,43 @@ def test_requires_hazard_column():
     seg = gpd.GeoDataFrame(geometry=[LineString([(0, 0), (1, 1)])], crs="EPSG:32645")
     with pytest.raises(ValueError, match="segment_hazard first"):
         score_segments(seg, trigger_prob=0.5)
+
+
+def test_calibrated_tiers_come_from_the_corridor_distribution():
+    """Fixed 0.25/0.50/0.75 thresholds assume risk is a normalised index. Once the
+    trigger model is calibrated to the true daily event rate, risk never exceeds
+    ~0.03 and the system is permanently green."""
+    from models.fusion.risk import calibrate_tiers
+
+    history = np.linspace(0.0, 0.03, 10_000)
+    tiers = calibrate_tiers(history, red=0.01, orange=0.05, yellow=0.20)
+    thresholds = [t for t, _ in tiers]
+
+    assert thresholds == sorted(thresholds, reverse=True)
+    assert thresholds[-1] == float("-inf"), "green must always be reachable"
+    assert 0 < thresholds[0] < 0.03
+
+
+def test_calibrated_tiers_fire_at_the_requested_rates():
+    from models.fusion.risk import calibrate_tiers, tier_for
+
+    rng = np.random.default_rng(0)
+    history = rng.gamma(2.0, 0.005, 20_000)
+    tiers = calibrate_tiers(history, red=0.01, orange=0.05, yellow=0.20)
+
+    labels = pd.Series([tier_for(v, tiers) for v in history])
+    assert labels.value_counts(normalize=True)["red"] == pytest.approx(0.01, abs=0.005)
+    assert (labels == "green").mean() == pytest.approx(0.80, abs=0.02)
+
+
+def test_calibration_rejects_incoherent_rates():
+    from models.fusion.risk import calibrate_tiers
+
+    with pytest.raises(ValueError, match="rates must satisfy"):
+        calibrate_tiers(np.linspace(0, 1, 100), red=0.2, orange=0.1, yellow=0.3)
+
+
+def test_empty_history_falls_back_to_the_default_tiers():
+    from models.fusion.risk import TIERS, calibrate_tiers
+
+    assert calibrate_tiers(pd.Series([], dtype=float)) == list(TIERS)

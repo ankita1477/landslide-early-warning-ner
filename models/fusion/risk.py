@@ -51,15 +51,48 @@ class RiskInput:
     exposure: float = 1.0
 
 
-def tier_for(risk: float) -> str:
-    return next(name for threshold, name in TIERS if risk >= threshold)
+def tier_for(risk: float, tiers: list[tuple[float, str]] | None = None) -> str:
+    return next(name for threshold, name in (tiers or TIERS) if risk >= threshold)
 
 
-def compute_risk(r: RiskInput) -> dict[str, float | str]:
+def calibrate_tiers(
+    risk_history: pd.Series | np.ndarray,
+    red: float = 0.01, orange: float = 0.05, yellow: float = 0.20,
+) -> list[tuple[float, str]]:
+    """Derive tier cut-points from this corridor's own risk distribution.
+
+    The fixed 0.25/0.50/0.75 thresholds assume risk is a normalised hazard
+    index. It is not: once the trigger model is calibrated to the true daily
+    event rate, P_t peaks around 0.02, risk never exceeds ~0.03, and the system
+    is permanently green — it would never raise an alert at all.
+
+    So the tiers are set as frequencies instead: red on the worst `red`
+    fraction of segment-days, orange on the next band, and so on. Those rates
+    are an operational choice about how often officials are willing to be
+    called out, and they are what the design means by calibrating thresholds
+    per corridor against the historical inventory.
+    """
+    values = np.asarray(pd.Series(risk_history).dropna(), dtype=float)
+    if values.size == 0:
+        return list(TIERS)
+    if not 0 < red < orange < yellow < 1:
+        raise ValueError("rates must satisfy 0 < red < orange < yellow < 1")
+
+    return [
+        (float(np.quantile(values, 1 - red)), "red"),
+        (float(np.quantile(values, 1 - orange)), "orange"),
+        (float(np.quantile(values, 1 - yellow)), "yellow"),
+        (float("-inf"), "green"),
+    ]
+
+
+def compute_risk(
+    r: RiskInput, tiers: list[tuple[float, str]] | None = None
+) -> dict[str, float | str]:
     hazard = r.susceptibility * r.trigger_prob * r.deform_modifier
     # D can push hazard above 1; clamp so the tier thresholds stay meaningful.
     risk = min(hazard * r.exposure, 1.0)
-    return {"hazard": hazard, "risk": risk, "tier": tier_for(risk)}
+    return {"hazard": hazard, "risk": risk, "tier": tier_for(risk, tiers)}
 
 
 def runout_distance(
@@ -143,6 +176,7 @@ def normalise_exposure(segments: gpd.GeoDataFrame, column: str = "criticality") 
 def score_segments(
     segments: gpd.GeoDataFrame, trigger_prob: float | pd.Series,
     creep_state: str | pd.Series = "unknown", exposure: pd.Series | None = None,
+    tiers: list[tuple[float, str]] | None = None,
 ) -> gpd.GeoDataFrame:
     """Apply the risk formula to segments that already carry `hazard_raw`."""
     if "hazard_raw" not in segments.columns:
@@ -161,7 +195,7 @@ def score_segments(
     exposure = normalise_exposure(out) if exposure is None else exposure
 
     scored = [
-        compute_risk(RiskInput(s, t, d, e))
+        compute_risk(RiskInput(s, t, d, e), tiers)
         for s, t, d, e in zip(
             out["hazard_raw"].fillna(0.0), trigger, modifier, exposure, strict=True
         )

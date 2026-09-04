@@ -76,3 +76,20 @@ def test_imerg_is_marked_as_needing_summation():
     """IMERG is a half-hourly rate; treating it as a daily total would be 48x wrong."""
     assert SOURCES["imerg"][3] is True
     assert SOURCES["chirps"][3] is False
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        pd.Timestamp("2015-07-04"),
+        pd.Timestamp("2015-07-04 13:45:00"),
+        "2015-07-04",
+        "2015-07-04 00:00:00",
+        date(2015, 7, 4),
+    ],
+)
+def test_dates_are_normalised_for_earth_engine(value):
+    """EE rejects 'YYYY-MM-DD HH:MM:SS', which is what str() gives a Timestamp."""
+    from ingestion.clients.rainfall import _ee_date
+
+    assert _ee_date(value) == "2015-07-04"
