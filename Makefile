@@ -1,4 +1,4 @@
-.PHONY: help check venv install up down logs db-shell migrate verify clean
+.PHONY: help check venv install up down logs db-shell migrate verify clean api test lint
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -36,6 +36,15 @@ verify:           ## Confirm PostGIS + TimescaleDB are live
 
 migrate:          ## Apply database migrations
 	./.venv/bin/alembic upgrade head
+
+api:              ## Run the API (no database needed; serves the pipeline outputs)
+	./.venv/bin/uvicorn api.main:app --reload --port 8000
+
+test:             ## Run the test suite
+	./.venv/bin/python -m pytest -q
+
+lint:             ## Lint the codebase
+	./.venv/bin/ruff check .
 
 clean:            ## Remove containers and volumes (DESTROYS DATA)
 	docker compose down -v
