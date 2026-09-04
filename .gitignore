@@ -41,3 +41,7 @@ dist/
 
 # osmnx response cache
 cache/
+
+# dashboard build output and deps
+dashboard/node_modules/
+dashboard/dist/

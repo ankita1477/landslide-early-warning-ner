@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -88,6 +89,30 @@ def risk_at_point(
         lat=lat, lon=lon, distance_to_segment_m=round(distance, 1),
         segment=_summary(row),
     )
+
+
+@router.get("/geojson")
+def segments_geojson(
+    store: Store,
+    tier: str | None = Query(None, description="comma-separated: orange,red"),
+) -> dict:
+    """Segment geometry with risk properties, for the map layer.
+
+    Reprojected to EPSG:4326: the stored geometry is in a metric UTM CRS for the
+    distance and buffer work, but web maps expect lon/lat.
+    """
+    tiers = None
+    if tier:
+        tiers = {t.strip().lower() for t in tier.split(",") if t.strip()}
+        unknown = tiers - set(TIER_ORDER)
+        if unknown:
+            raise HTTPException(422, f"unknown tier(s): {sorted(unknown)}")
+
+    rows = store.list_segments(tiers=tiers, limit=5000)
+    columns = ["id", "highway_code", "chainage_km", "risk", "tier",
+               "susceptibility", "trigger_prob", "deform_mod", "exposure", "geometry"]
+    frame = rows[[c for c in columns if c in rows.columns]].to_crs("EPSG:4326")
+    return json.loads(frame.to_json())
 
 
 @router.get("/tiers", response_model=list[TierThreshold])

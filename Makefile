@@ -1,4 +1,4 @@
-.PHONY: help check venv install up down logs db-shell migrate verify clean api test lint
+.PHONY: help check venv install up down logs db-shell migrate verify clean api dashboard test lint
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -39,6 +39,9 @@ migrate:          ## Apply database migrations
 
 api:              ## Run the API (no database needed; serves the pipeline outputs)
 	./.venv/bin/uvicorn api.main:app --reload --port 8000
+
+dashboard:        ## Run the officials' dashboard (needs `make api` in another shell)
+	cd dashboard && npm install && npm run dev
 
 test:             ## Run the test suite
 	./.venv/bin/python -m pytest -q
