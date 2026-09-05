@@ -1440,7 +1440,7 @@ A dedicated test guards the property that matters most: **the spatial CV splitte
 | **4 — Deformation layer** | LiCSAR chain over the corridor, displacement time series, change-point detection, coverage flags | ☑ built, but **not observable here** — coherence 0.095 median against a 0.30 threshold |
 | **5 — Fusion & exposure** | Runout buffers, segment scoring, tier calibration, exposure from settlements and facilities | ☑ 116 segments; exposure spans 0.15–1.00 from 123 OSM settlements and 68 facilities |
 | **6 — API & dashboard** | FastAPI endpoints, React dashboard with map, watchlist, corridor strip and factor breakdown | ☑ 7 endpoints; TiTiler tiles and historical replay not built |
-| **7 — Delivery** | SMS gateway, escalation dispatcher, delivery tracking | ☑ *partial* — dispatcher and templates built and tested; **English only** until translations are reviewed, and **dry-run only** without provider credentials. Citizen app and IVR not built |
+| **7 — Delivery** | SMS gateway, escalation dispatcher, delivery tracking, citizen app | ☑ *partial* — dispatcher and templates built; **English only** until translations are reviewed, **dry-run only** without credentials. Citizen app built (Expo, 3 screens, offline cache); reports queue on device as no endpoint accepts them. IVR not built |
 | **8 — Validation** | Hindcast, metric report, lead-time distribution | ☑ **8-day warning** on a real event; 42-event walk-forward study — see §16A |
 | **9 — Hardening & scale-out** | Kubernetes deployment, monitoring, CI/CD, OGC export, extension beyond the pilot corridor | ☑ *partial* — GitHub Actions runs tests, lint, types and the dashboard build. Kubernetes, monitoring and OGC export not built |
 

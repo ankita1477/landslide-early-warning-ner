@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.routers import risk
 from api.schemas.risk import Health
@@ -23,6 +25,32 @@ app = FastAPI(
         "rather than hard-coded by clients."
     ),
 )
+# The dashboard reaches the API through a dev-server proxy, so it needs nothing
+# here. A browser client that calls the API directly does — the citizen app's
+# web build is served from another port and was silently blocked until this was
+# added. Native builds are unaffected; CORS is a browser rule.
+#
+# Origins are listed rather than wildcarded. "*" would let any page on the
+# internet read a logged-in user's responses, and this API will carry subscriber
+# data once alerting is live.
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://localhost:4173,http://localhost:8081,"
+        "http://localhost:8082",
+    ).split(",")
+    if origin.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
 app.include_router(risk.router, prefix="/api/v1")
 
 

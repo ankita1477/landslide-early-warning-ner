@@ -45,3 +45,8 @@ cache/
 # dashboard build output and deps
 dashboard/node_modules/
 dashboard/dist/
+
+# expo
+citizen-app/node_modules/
+citizen-app/.expo/
+citizen-app/dist/
