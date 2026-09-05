@@ -6,11 +6,40 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import type { Tier } from "./theme";
 
-/** Set EXPO_PUBLIC_API_URL to the machine running `make api`. A phone cannot
- *  reach the laptop's localhost, so this has to be a LAN address on device. */
-const BASE = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+const API_PORT = 8000;
+const API_PATH = "/api/v1";
+
+/** Where the API lives.
+ *
+ *  `localhost` is wrong on a phone: it resolves to the handset, not the laptop
+ *  running `make api`, so a device build silently fails every request. Expo
+ *  already knows the development machine's LAN address — it is how the bundle
+ *  reached the phone — so that host is reused and the API is found without
+ *  anyone editing a config file.
+ *
+ *  EXPO_PUBLIC_API_URL overrides everything, which is what a real deployment
+ *  would set.
+ */
+function resolveBase(): string {
+  const explicit = process.env.EXPO_PUBLIC_API_URL;
+  if (explicit) return explicit;
+
+  // e.g. "192.168.1.14:8081" while developing on a device.
+  const hostUri =
+    Constants.expoConfig?.hostUri ??
+    (Constants.expoGoConfig as { debuggerHost?: string } | undefined)?.debuggerHost;
+  const host = hostUri?.split(":")[0];
+
+  if (host && host !== "localhost" && host !== "127.0.0.1") {
+    return `http://${host}:${API_PORT}${API_PATH}`;
+  }
+  return `http://localhost:${API_PORT}${API_PATH}`;
+}
+
+export const BASE = resolveBase();
 
 export interface SegmentSummary {
   id: string;
