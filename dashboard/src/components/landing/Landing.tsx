@@ -1,31 +1,39 @@
+import { ArrowRight } from "lucide-react";
 import { Hero } from "./Hero";
 import { Metrics } from "./Metrics";
-import { Formula } from "./Formula";
-import { LayerSequence } from "./LayerSequence";
+import { Method } from "./Method";
 import { Proof } from "./Proof";
 import { Corridor } from "./Corridor";
+import { Mark } from "../Mark";
 import type { SegmentSummary } from "../../api/client";
 
 interface Props {
   onEnter: () => void;
   segmentsLoaded: number | null;
+  computedAt: string | null;
   segments: SegmentSummary[];
 }
 
-export function Landing({ onEnter, segmentsLoaded, segments }: Props) {
+export function Landing({ onEnter, segmentsLoaded, computedAt, segments }: Props) {
   return (
     <main className="landing">
-      <div className="landing-inner">
-        <Hero />
+      <nav className="topnav" aria-label="Site">
+        <div className="topnav-inner">
+          <span className="brand"><Mark size={22} /> Landsafe <em>NER</em></span>
+          <span className="topnav-note mono">Operations · NH-10 Sevoke–Gangtok</span>
+          <button className="btn btn-ink" onClick={onEnter}>
+            Open the console <ArrowRight size={16} strokeWidth={2.2} />
+          </button>
+        </div>
+      </nav>
+
+      <div className="inner">
+        <Hero segments={segments} computedAt={computedAt} />
         <Metrics />
-        <hr className="hairline" />
-        <Formula />
       </div>
-      <LayerSequence />
-      <div className="landing-inner">
-        <hr className="hairline" />
+      <Method />
+      <div className="inner">
         <Proof />
-        <hr className="hairline" />
         <Corridor segments={segments} onEnter={onEnter} ready={segmentsLoaded} />
       </div>
     </main>

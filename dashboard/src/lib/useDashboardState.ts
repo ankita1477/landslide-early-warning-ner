@@ -25,6 +25,7 @@ type Action =
   | { type: "select"; id: string | null }
   | { type: "hover"; id: string | null }
   | { type: "toggleBand"; band: Tier }
+  | { type: "setBands"; bands: Tier[] }
   | { type: "clearFilters" }
   | { type: "brush"; range: [number, number] | null }
   | { type: "sort"; key: SortKey }
@@ -60,6 +61,10 @@ function reducer(state: DashboardState, action: Action): DashboardState {
         : [...state.bands, action.band];
       return { ...state, bands };
     }
+    case "setBands":
+      // An empty selection would hide every kilometre; the group is treated as
+      // "all" instead, which is what a person clearing chips actually wants.
+      return { ...state, bands: action.bands.length ? action.bands : [...TIERS] };
     case "clearFilters":
       return { ...state, bands: [...TIERS], brush: null };
     case "brush":

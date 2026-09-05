@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { Copy, Crosshair, Download, X } from "lucide-react";
 import { api, type SegmentDetail, type Tier } from "../../api/client";
-import { TIER_COLOR } from "../../theme";
+import { TIER_COLOR, TIER_INK, TIER_WORD } from "../../theme";
+import { LayerStack } from "../visuals/LayerStack";
 import { LAYER_SERIES } from "../../lib/bands";
 import { EASE_OUT_EXPO } from "../../lib/motion";
 import facts from "../../data/segments.json";
@@ -16,18 +18,18 @@ const FACTS = facts as Facts;
 function EmptyState({ summary }: { summary: Summary | null }) {
   return (
     <div className="inspector">
-      <p className="empty-title">Corridor overview</p>
+      <p className="empty-title">The corridor now</p>
       <p className="empty-help">
         Pick a kilometre on the map, the list, or the strip to see what drives it.
       </p>
 
       {summary && (
         <>
-          <section className="panel">
-            <h3 className="micro">Highest risk now</h3>
+          <section className="panel peak" style={{ background: `var(--${summary.worst.tier}-wash)` }}>
+            <h3 className="micro" style={{ color: TIER_INK[summary.worst.tier] }}>Highest risk now</h3>
             <div className="peak-km">km {summary.worst.chainage_km.toFixed(1)}</div>
-            <div className="peak-meta mono">
-              {summary.worst.tier} · {summary.worst.risk.toFixed(4)}
+            <div className="peak-meta mono" style={{ color: TIER_INK[summary.worst.tier] }}>
+              {TIER_WORD[summary.worst.tier]} · {summary.worst.risk.toFixed(4)}
             </div>
           </section>
 
@@ -36,9 +38,11 @@ function EmptyState({ summary }: { summary: Summary | null }) {
             <ul className="summary-bands">
               {summary.counts.map((c) => (
                 <li key={c.tier}>
-                  <span className="swatch" style={{ background: TIER_COLOR[c.tier] }}
-                        aria-hidden="true" />
-                  <span className="legend-label">{c.tier}</span>
+                  <span className="swatch" style={{ background: TIER_COLOR[c.tier] }} aria-hidden="true" />
+                  <span className="legend-label">{TIER_WORD[c.tier]}</span>
+                  <span className="count-bar" aria-hidden="true">
+                    <span style={{ width: `${(c.n / 116) * 100}%`, background: TIER_COLOR[c.tier] }} />
+                  </span>
                   <span className="legend-value mono">{c.n}</span>
                 </li>
               ))}
@@ -50,7 +54,7 @@ function EmptyState({ summary }: { summary: Summary | null }) {
             <dl className="facts one-col">
               {summary.thresholds.map((t) => (
                 <div key={t.tier}>
-                  <dt>{t.tier} at or above</dt>
+                  <dt>{TIER_WORD[t.tier as Tier]} at or above</dt>
                   <dd className="mono">{t.threshold.toFixed(4)}</dd>
                 </div>
               ))}
@@ -59,6 +63,11 @@ function EmptyState({ summary }: { summary: Summary | null }) {
               Calibrated for this corridor from its own risk distribution, not
               fixed constants.
             </p>
+          </section>
+
+          <section className="panel">
+            <h3 className="micro">How a score is built</h3>
+            <div className="insp-stack"><LayerStack /></div>
           </section>
         </>
       )}
@@ -161,7 +170,7 @@ function RainfallChart({ chainage }: { chainage: number }) {
         <path d={line} fill="none" stroke="var(--layer-trigger)" strokeWidth={2}
               strokeLinecap="round" strokeLinejoin="round" />
         <circle cx={x(series.length - 1)} cy={y(series[series.length - 1])} r={4}
-                fill="var(--layer-trigger)" stroke="var(--bg-surface)" strokeWidth={2} />
+                fill="var(--layer-trigger)" stroke="var(--panel)" strokeWidth={2} />
       </svg>
       <div className="chart-foot mono">
         <span>{rainfall.days[0]}</span>
@@ -184,11 +193,12 @@ export interface Summary {
   thresholds: { tier: string; threshold: number }[];
 }
 
-export function Inspector({ segmentId, thresholds, summary, onZoom }: {
+export function Inspector({ segmentId, thresholds, summary, onZoom, onClose }: {
   segmentId: string | null;
   thresholds: { tier: string; threshold: number }[];
   summary: Summary | null;
   onZoom: () => void;
+  onClose: () => void;
 }) {
   const [detail, setDetail] = useState<SegmentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -211,7 +221,7 @@ export function Inspector({ segmentId, thresholds, summary, onZoom }: {
         <div className="pane-error">
           <p>Could not load this segment.</p>
           <p className="mono tiny">{error}</p>
-          <button className="ghost" onClick={() => setDetail(null)}>Retry</button>
+          <button className="btn btn-ghost" onClick={() => setDetail(null)}>Retry</button>
         </div>
       </div>
     );
@@ -236,10 +246,11 @@ export function Inspector({ segmentId, thresholds, summary, onZoom }: {
             {f.elevation_m != null && ` · ${Number(f.elevation_m).toFixed(0)} m`}
           </div>
         </div>
-        <span className="band-chip static" style={{ background: TIER_COLOR[detail.tier] }}>
-          <span className="chip-dot ink" aria-hidden="true" />
-          {detail.tier}
+        <span className="band-tag" style={{ background: `var(--${detail.tier}-wash)`, color: TIER_INK[detail.tier] }}>
+          <span className="band-dot" style={{ background: TIER_COLOR[detail.tier] }} aria-hidden="true" />
+          {TIER_WORD[detail.tier]}
         </span>
+        <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={15} /></button>
       </div>
 
       <section className="panel">
@@ -267,7 +278,7 @@ export function Inspector({ segmentId, thresholds, summary, onZoom }: {
             </div>
           ))}
         </dl>
-        <button className="ghost tiny" onClick={() => setShowAll(!showAll)}>
+        <button className="btn btn-ghost btn-xs" onClick={() => setShowAll(!showAll)}>
           {showAll ? "Show fewer features" : "Show all features"}
         </button>
         <p className="panel-note">
@@ -294,18 +305,18 @@ export function Inspector({ segmentId, thresholds, summary, onZoom }: {
       </section>
 
       <div className="insp-actions">
-        <button className="ghost" onClick={() => navigator.clipboard?.writeText(detail.id)}>
-          Copy segment ID
+        <button className="btn btn-ghost" onClick={() => navigator.clipboard?.writeText(detail.id)}>
+          <Copy size={14} /> Copy ID
         </button>
-        <button className="ghost" onClick={() => {
+        <button className="btn btn-ghost" onClick={() => {
           const url = URL.createObjectURL(
             new Blob([JSON.stringify({ ...detail, terrain: f }, null, 2)],
                      { type: "application/json" }));
           const a = document.createElement("a");
           a.href = url; a.download = `${detail.id.replace(":", "_")}.json`; a.click();
           URL.revokeObjectURL(url);
-        }}>Export JSON</button>
-        <button className="ghost" onClick={onZoom}>Open in map</button>
+        }}><Download size={14} /> JSON</button>
+        <button className="btn btn-ghost" onClick={onZoom}><Crosshair size={14} /> Open in map</button>
       </div>
     </motion.div>
   );

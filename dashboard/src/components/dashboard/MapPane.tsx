@@ -3,8 +3,10 @@ import type { FeatureCollection } from "geojson";
 // maplibre-gl v6 exposes named exports only; there is no default export.
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { ToggleGroup, Tooltip } from "radix-ui";
+import { Compass, Maximize2, Minus, Plus } from "lucide-react";
 import type { Tier } from "../../api/client";
-import { TIER_COLOR } from "../../theme";
+import { TIER_COLOR, TIER_WORD } from "../../theme";
 import { BAND_WIDTH, LAYER_SERIES, TIERS, type LayerKey } from "../../lib/bands";
 
 interface Props {
@@ -30,7 +32,10 @@ const STYLE: maplibregl.StyleSpecification = {
       attribution: "OpenStreetMap contributors",
     },
   },
-  layers: [{ id: "base", type: "raster", source: "base" }],
+  // Desaturated in the raster layer, not with a CSS filter on the canvas: the
+  // road is drawn on the same canvas, and a canvas filter greys the road too.
+  layers: [{ id: "base", type: "raster", source: "base",
+    paint: { "raster-saturation": -1, "raster-contrast": -0.12, "raster-brightness-min": 0.06 } }],
 };
 
 const bandColor: maplibregl.DataDrivenPropertyValueSpecification<string> = [
@@ -52,7 +57,7 @@ const bandWidth: maplibregl.DataDrivenPropertyValueSpecification<number> = [
 const layerRamp = (property: string, max: number):
   maplibregl.DataDrivenPropertyValueSpecification<string> => [
   "interpolate", ["linear"], ["to-number", ["get", property], 0],
-  0, "#1e293b", max * 0.5, "#7c8da3", max, "#f8fafc",
+  0, "#D7DDE3", max * 0.5, "#6F7C8A", max, "#141C26",
 ];
 
 const LAYER_PROPERTY: Record<LayerKey, { property: string; max: number }> = {
@@ -86,6 +91,9 @@ export function MapPane({
       });
       // "style.load" fires when the style parses; "load" additionally waits for
       // every source, which a basemap with any failing tile never satisfies.
+      // Exposed for inspection from the console; the map is otherwise reachable
+      // only through this ref.
+      (window as unknown as { __map: maplibregl.Map }).__map = map.current;
       map.current.on("style.load", () => setReady(true));
       map.current.on("idle", () => setReady(true));
     } catch (error) {
@@ -105,9 +113,10 @@ export function MapPane({
         paint: { "line-color": "#000", "line-opacity": 0, "line-width": 24 } });
       m.addLayer({ id: "glow", type: "line", source: "segments",
         filter: ["in", ["get", "tier"], ["literal", ["orange", "red"]]],
-        paint: { "line-color": bandColor, "line-width": 18, "line-blur": 14, "line-opacity": 0.45 } });
+        paint: { "line-color": bandColor, "line-width": 20, "line-blur": 16, "line-opacity": 0.28 } });
       m.addLayer({ id: "casing", type: "line", source: "segments",
-        paint: { "line-color": "#05070d", "line-width": 13, "line-opacity": 0.8 } });
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#ffffff", "line-width": 14, "line-opacity": 0.95 } });
       m.addLayer({ id: "risk", type: "line", source: "segments",
         layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": bandColor, "line-width": bandWidth } });
@@ -116,11 +125,11 @@ export function MapPane({
       m.addLayer({ id: "risk-dash", type: "line", source: "segments",
         filter: ["==", ["get", "tier"], "orange"],
         layout: { "line-cap": "butt" },
-        paint: { "line-color": "#05070d", "line-width": BAND_WIDTH.orange,
-                 "line-dasharray": [3, 3], "line-opacity": 0.6 } });
+        paint: { "line-color": "#ffffff", "line-width": BAND_WIDTH.orange,
+                 "line-dasharray": [3, 3], "line-opacity": 0.75 } });
       m.addLayer({ id: "selected", type: "line", source: "segments",
         filter: ["==", ["get", "id"], "__none__"],
-        paint: { "line-color": "#f8fafc", "line-width": 2, "line-gap-width": 8 } });
+        paint: { "line-color": "#141C26", "line-width": 2, "line-gap-width": 9 } });
       m.addLayer({ id: "labels", type: "symbol", source: "segments", minzoom: 11,
         filter: ["in", ["get", "tier"], ["literal", ["orange", "red"]]],
         layout: {
@@ -128,7 +137,7 @@ export function MapPane({
           "text-size": 11, "text-font": ["Noto Sans Regular"],
           "text-allow-overlap": false, "symbol-placement": "line-center",
         },
-        paint: { "text-color": "#f8fafc", "text-halo-color": "#05070d", "text-halo-width": 1.4 } });
+        paint: { "text-color": "#141C26", "text-halo-color": "#ffffff", "text-halo-width": 1.6 } });
 
       m.on("click", "hit", (e: maplibregl.MapLayerMouseEvent) => {
         const id = e.features?.[0]?.properties?.id;
@@ -145,7 +154,7 @@ export function MapPane({
           .sort((a, b) => b.v - a.v)[0];
         setTip({ x: e.point.x, y: e.point.y, text: [
           `km ${Number(p.chainage_km).toFixed(1)}`,
-          `${p.tier} · ${Number(p.risk).toFixed(4)}`,
+          `${TIER_WORD[p.tier as Tier]} · ${Number(p.risk).toFixed(4)}`,
           `top factor: ${top.label}`,
         ] });
       });
@@ -224,49 +233,60 @@ export function MapPane({
         <div>
           <strong>Map unavailable</strong>
           <p className="muted">{failed}</p>
-          <p className="muted">The watchlist, corridor strip and inspector still work.</p>
+          <p className="muted">The list, the corridor strip and the inspector still work.</p>
         </div>
       </div>
     );
   }
 
+  const control = (label: string, onClick: () => void, icon: React.ReactNode) => (
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>
+        <button onClick={onClick} aria-label={label}>{icon}</button>
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content className="tip" side="left" sideOffset={6}>{label}<Tooltip.Arrow className="tip-arrow" /></Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
+
   return (
     <div className="map-pane">
       <div ref={container} className="map" />
 
-      <div className="layer-switch glass" role="group" aria-label="Map layer">
-        {([["risk", "Risk"], ...LAYER_SERIES.map((s) => [s.key, s.label] as const)] as const).map(
-          ([key, label]) => (
-            <button key={key} className={layer === key ? "on" : ""}
-                    onClick={() => onLayer(key as LayerKey | "risk")}
-                    aria-pressed={layer === key}>{label}</button>
-          ),
-        )}
-      </div>
+      <ToggleGroup.Root type="single" value={layer} className="layer-switch seg-group float"
+                        aria-label="Map layer"
+                        onValueChange={(v) => v && onLayer(v as LayerKey | "risk")}>
+        <ToggleGroup.Item value="risk" className="seg">Risk</ToggleGroup.Item>
+        {LAYER_SERIES.map((s) => (
+          <ToggleGroup.Item key={s.key} value={s.key} className="seg"
+                            style={{ ["--layer" as string]: s.color }}>
+            <span className="seg-swatch" aria-hidden="true" />{s.label}
+          </ToggleGroup.Item>
+        ))}
+      </ToggleGroup.Root>
 
-      {/* One compact row rather than a stacked panel: the legend explains the
-          width encoding, it does not need to dominate the map. */}
-      <div className="map-legend">
+      {/* One compact row: the legend explains the width encoding, it does not
+          need to dominate the map. */}
+      <div className="map-legend float">
         {TIERS.map((tier) => (
           <span className="legend-row" key={tier}>
-            <svg width="22" height="9" aria-hidden="true">
-              <line x1="1" y1="4.5" x2="21" y2="4.5" stroke={TIER_COLOR[tier]}
+            <svg width="24" height="10" aria-hidden="true">
+              <line x1="1" y1="5" x2="23" y2="5" stroke={TIER_COLOR[tier]}
                     strokeWidth={BAND_WIDTH[tier]}
                     strokeDasharray={tier === "orange" ? "5 3" : undefined} />
             </svg>
-            <span>{tier}</span>
+            <span>{TIER_WORD[tier]}</span>
           </span>
         ))}
         <span className="legend-note">thicker = more severe</span>
       </div>
 
-      <div className="map-controls glass">
-        <button onClick={() => map.current?.zoomIn({ duration: 300 })} aria-label="Zoom in">+</button>
-        <button onClick={() => map.current?.zoomOut({ duration: 300 })} aria-label="Zoom out">−</button>
-        <button onClick={() => map.current?.easeTo({ bearing: 0, pitch: 0, duration: 400 })}
-                aria-label="Reset north">◎</button>
-        <button onClick={() => bounds.current && map.current?.fitBounds(bounds.current,
-                  { padding: 60, duration: 700 })} aria-label="Fit the whole corridor">⤢</button>
+      <div className="map-controls float">
+        {control("Zoom in", () => map.current?.zoomIn({ duration: 300 }), <Plus size={15} />)}
+        {control("Zoom out", () => map.current?.zoomOut({ duration: 300 }), <Minus size={15} />)}
+        {control("Reset north", () => map.current?.easeTo({ bearing: 0, pitch: 0, duration: 400 }), <Compass size={15} />)}
+        {control("Fit the whole corridor", () => bounds.current && map.current?.fitBounds(bounds.current, { padding: 60, duration: 700 }), <Maximize2 size={15} />)}
       </div>
 
       {tip && (

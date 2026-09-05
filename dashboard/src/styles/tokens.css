@@ -1,149 +1,102 @@
-/* Design tokens. Defined once; both routes read from here. */
+/* Design tokens. Defined once; both routes read from here.
+ *
+ * A cool, light chart room. The page is fog, the panels are white, the type is
+ * slate, and the only saturated colour on screen is data: the four risk bands
+ * and the four model layers. Nothing else is allowed a hue. */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 
 :root {
-  /* ── Base, layered dark ─────────────────────────────── */
-  --bg-page: #05070d;
-  --bg-surface: #0a0f1a;
-  --bg-elevated: #111827;
+  /* ── Ground ─────────────────────────────────────────── */
+  --fog: #f2f4f6;
+  --fog-2: #e8ebee;
+  --panel: #ffffff;
 
-  /* ── Glass ──────────────────────────────────────────── */
-  --glass-fill: rgba(255, 255, 255, 0.04);
-  --glass-fill-hover: rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-hover: rgba(255, 255, 255, 0.16);
-  --glass-blur: blur(20px) saturate(140%);
-  /* Top highlight so a card catches light along its upper edge. */
-  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.7);
+  /* ── Slate ink ──────────────────────────────────────── */
+  --ink: #141c26;
+  --ink-2: #4e5a68;
+  --ink-3: #7f8a97;
+  --line: rgba(20, 28, 38, 0.10);
+  --line-hi: rgba(20, 28, 38, 0.24);
 
-  /* ── The risk ramp is the brand. Every accent comes from it. ── */
-  --green: #22c55e;
-  --yellow: #eab308;
-  --orange: #f97316;
-  --red: #ef4444;
+  /* ── The four bands: moss, amber, ember, brick. Same order and words as
+        the citizen app; the hex is shared with it. ──────── */
+  --green: #3a8f5a;
+  --yellow: #d9a21b;
+  --orange: #e0662b;
+  --red: #c8362b;
 
-  --green-dim: rgba(34, 197, 94, 0.16);
-  --yellow-dim: rgba(234, 179, 8, 0.16);
-  --orange-dim: rgba(249, 115, 22, 0.16);
-  --red-dim: rgba(239, 68, 68, 0.16);
+  /* Dark enough to be read as text on a light ground. */
+  --green-ink: #256b41;
+  --yellow-ink: #7f5a05;
+  --orange-ink: #a6420f;
+  --red-ink: #9c2419;
 
-  /* ── Text: never pure white on pure black ───────────── */
-  --text-1: #f8fafc;
-  --text-2: #94a3b8;
-  --text-3: #64748b;
+  /* Large fields take a wash, never the full colour. */
+  --green-wash: #dfebdc;
+  --yellow-wash: #f6e7bc;
+  --orange-wash: #f8d9c4;
+  --red-wash: #f3cfc9;
+
+  /* ── Categorical palette: model layer identity, not severity ──
+        Deliberately unlike the ramp: two blues, a plum and an umber so no
+        layer colour can be mistaken for a band. */
+  --layer-susceptibility: #2e5eaa;
+  --layer-trigger: #8e4585;
+  --layer-deformation: #2a9d8f;
+  --layer-exposure: #6b4f2a;
+
+  --chart-grid: rgba(20, 28, 38, 0.08);
 
   /* ── Type ───────────────────────────────────────────── */
-  --font-display: "Inter Tight", "General Sans", "Satoshi", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", "Geist Mono", ui-monospace, SFMono-Regular, monospace;
-
-  --display-size: clamp(2.75rem, 7vw, 5.5rem);
-  --display-tracking: -0.03em;
-  --display-leading: 0.95;
+  --font-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* ── Shape ──────────────────────────────────────────── */
-  --radius-card: 16px;
-  --radius-control: 12px;
+  --radius-card: 14px;
+  --radius-control: 9px;
   --radius-pill: 999px;
 
-  /* ── Motion ─────────────────────────────────────────── */
+  --shadow-panel: 0 1px 2px rgba(20, 28, 38, 0.04), 0 8px 24px -12px rgba(20, 28, 38, 0.18);
+  --shadow-float: 0 12px 40px -14px rgba(20, 28, 38, 0.35);
+
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --dur-reveal: 0.7s;
 
-  --hairline: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.12),
-    transparent
-  );
-
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
-
 html { -webkit-text-size-adjust: 100%; }
-
 body {
   margin: 0;
-  background: var(--bg-page);
-  color: var(--text-1);
+  background: var(--fog);
+  color: var(--ink);
   font-family: var(--font-body);
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
 /* Numbers and technical strings are always mono and tabular — this single rule
    does most of the work of making the interface read as an instrument. */
-.mono,
-.metric-value,
-.formula,
-.km,
-.rank {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-}
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
-.glass {
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-card);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-highlight), var(--glass-shadow);
-}
-
-.hairline {
-  height: 1px;
-  border: 0;
-  background: var(--hairline);
-  margin: 0;
-}
-
-/* Every interactive element keeps a visible focus ring. */
-:where(a, button, [tabindex]):focus-visible {
-  outline: 2px solid var(--yellow);
-  outline-offset: 3px;
-  border-radius: 6px;
-}
+/* Every interactive element keeps a visible focus ring. Ink, not a hue: a
+   coloured ring would read as a band. */
+:where(a, button, [tabindex], input):focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important; scroll-behavior: auto !important;
   }
-}
-
-/* ── Categorical palette: model layer identity, not severity ──────────
-   Deliberately separate from the risk ramp. Colouring a contribution bar
-   with the status ramp would spend the identity channel re-encoding
-   severity that the bar length already shows, and would make a
-   "susceptibility" segment read as a risk band. */
-:root {
-  --layer-susceptibility: #3987e5;
-  --layer-trigger: #d95926;
-  --layer-deformation: #199e70;
-  --layer-exposure: #c98500;
-
-  /* Chart furniture is recessive: hairline, solid, one step off the surface. */
-  --chart-grid: rgba(255, 255, 255, 0.07);
-  --chart-wash: 0.1;
 }
 
 /* High-contrast bands: order comes from lightness alone, so it survives any
    colour vision. Opt-in, because the traffic-light ramp is what disaster
    management convention expects. */
 [data-bands="mono"] {
-  --green: #6b5a1f;
-  --yellow: #9a7c14;
-  --orange: #cfa227;
-  --red: #ffd970;
+  --green: #cfc9ba; --yellow: #a99e82; --orange: #6e6553; --red: #2b2620;
+  --green-ink: #7a725f; --yellow-ink: #6e6553; --orange-ink: #3f3a30; --red-ink: #1a1713;
 }

@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
 import type { FeatureCollection } from "geojson";
-import { AnimatePresence, motion } from "framer-motion";
-import Lenis from "lenis";
-import { Aurora } from "./components/Aurora";
 import { Landing } from "./components/landing/Landing";
 import { Console } from "./components/dashboard/Console";
 import { api, type Health, type SegmentSummary, type TierThreshold } from "./api/client";
-import { prefersReducedMotion, routeTransition } from "./lib/motion";
 import "./styles/tokens.css";
 import "./App.css";
 
@@ -34,15 +30,9 @@ export default function App() {
   const onDashboard = route === "#/dashboard";
 
   useEffect(() => {
-    Promise.all([
-      api.geojson(), api.watchlist(25), api.health(), api.segments(), api.tiers(),
-    ])
+    Promise.all([api.geojson(), api.watchlist(25), api.health(), api.segments(), api.tiers()])
       .then(([g, w, h, s, t]) => {
-        setGeojson(g);
-        setWatchlist(w.segments);
-        setHealth(h);
-        setAll(s.segments);
-        setThresholds(t);
+        setGeojson(g); setWatchlist(w.segments); setHealth(h); setAll(s.segments); setThresholds(t);
       })
       .catch((e) => setError(String(e)));
   }, []);
@@ -50,62 +40,27 @@ export default function App() {
   // The worst segment carries the scoring timestamp for the whole run.
   useEffect(() => {
     if (!watchlist.length || computedAt) return;
-    api.segment(watchlist[0].id)
-      .then((d) => setComputedAt(d.computed_at))
-      .catch(() => undefined);
+    api.segment(watchlist[0].id).then((d) => setComputedAt(d.computed_at)).catch(() => undefined);
   }, [watchlist, computedAt]);
 
-  /** Smooth scroll drives the pinned section. It is skipped entirely when the
-   *  visitor asks for reduced motion, and on the dashboard, where hijacking the
-   *  scroll of an operations console would be actively unhelpful. */
-  useEffect(() => {
-    if (onDashboard || prefersReducedMotion()) return;
-    const lenis = new Lenis({ duration: 1.1, smoothWheel: true });
-    let frame = 0;
-    const raf = (time: number) => {
-      lenis.raf(time);
-      frame = requestAnimationFrame(raf);
-    };
-    frame = requestAnimationFrame(raf);
-    return () => {
-      cancelAnimationFrame(frame);
-      lenis.destroy();
-    };
-  }, [onDashboard]);
-
-  useEffect(() => {
-    if (!onDashboard) window.scrollTo(0, 0);
-  }, [onDashboard]);
+  useEffect(() => { window.scrollTo(0, 0); }, [onDashboard]);
 
   return (
     <>
-      <Aurora />
       {error && (
         <div className="banner" role="alert">
           {error} — is the API running? <code className="mono">make api</code>
         </div>
       )}
-
-      <AnimatePresence mode="wait">
-        {onDashboard ? (
-          <motion.div key="dashboard" variants={routeTransition}
-                      initial="hidden" animate="visible" exit="exit">
-            <Console geojson={geojson} allSegments={all} health={health}
-                     thresholds={thresholds} computedAt={computedAt}
-                     loadError={error}
-                     onBack={() => { window.location.hash = "#/"; }} />
-          </motion.div>
-        ) : (
-          <motion.div key="landing" variants={routeTransition}
-                      initial="hidden" animate="visible" exit="exit">
-            <Landing
-              segments={all}
-              segmentsLoaded={health?.segments_loaded ?? null}
-              onEnter={() => { window.location.hash = "#/dashboard"; }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {onDashboard ? (
+        <Console geojson={geojson} allSegments={all} health={health} thresholds={thresholds}
+                 computedAt={computedAt} loadError={error}
+                 onBack={() => { window.location.hash = "#/"; }} />
+      ) : (
+        <Landing segments={all} segmentsLoaded={health?.segments_loaded ?? null}
+                 computedAt={computedAt}
+                 onEnter={() => { window.location.hash = "#/dashboard"; }} />
+      )}
     </>
   );
 }

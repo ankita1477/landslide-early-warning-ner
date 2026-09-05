@@ -1,27 +1,39 @@
 import { motion } from "framer-motion";
-import { BandBars } from "../visuals/BandBars";
-import { fadeUp, maskUp } from "../../lib/motion";
+import type { SegmentSummary } from "../../api/client";
+import { CorridorBlock } from "../visuals/CorridorBlock";
+import { fadeUp } from "../../lib/motion";
 
-const LINES = ["Landslide", "Early Warning"];
+function runLabel(iso: string | null) {
+  if (!iso) return "connecting to the scoring run";
+  const ist = new Date(new Date(iso + "Z").getTime() + 5.5 * 3600 * 1000);
+  return `scored ${ist.toUTCString().slice(5, 16)} · ${ist.toISOString().slice(11, 16)} IST`;
+}
 
-export function Hero() {
+export function Hero({ segments, computedAt }: { segments: SegmentSummary[]; computedAt: string | null }) {
   return (
     <header className="hero">
-      <BandBars />
-      <h1 className="display">
-        {LINES.map((line, i) => (
-          <span className="mask" key={line}>
-            <motion.span custom={i} variants={maskUp} initial="hidden" animate="visible">
-              {line}
-            </motion.span>
-          </span>
-        ))}
-      </h1>
-      <motion.p className="lede" variants={fadeUp} initial="hidden" animate="visible">
-        Rainfall-triggered landslide risk for the <strong>NH-10 corridor</strong>,
-        Sevoke to Gangtok — <span className="mono">109.6 km</span> scored every
-        kilometre, every day, from satellite data alone. No ground sensors.
-      </motion.p>
+      <div className="hero-copy">
+        <motion.p className="eyebrow" variants={fadeUp} custom={0} initial="hidden" animate="visible">
+          Landslide early warning · North Eastern Region
+        </motion.p>
+        <motion.h1 className="display" variants={fadeUp} custom={1} initial="hidden" animate="visible">
+          Every kilometre of the road, read before the rain arrives.
+        </motion.h1>
+        <motion.p className="lede" variants={fadeUp} custom={2} initial="hidden" animate="visible">
+          NH-10 from Sevoke to Gangtok, <span className="mono">109.6 km</span> in
+          116 one-kilometre stretches, scored every day from satellite rainfall,
+          terrain and radar. No ground sensors. One number per kilometre, and the
+          reason behind it.
+        </motion.p>
+        <motion.p className="hero-run mono" variants={fadeUp} custom={3} initial="hidden" animate="visible">
+          {runLabel(computedAt)}
+        </motion.p>
+      </div>
+      <motion.div className="hero-art" initial={{ y: 14 }} animate={{ y: 0 }}
+                  transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}>
+        <CorridorBlock segments={segments} />
+        <p className="hero-caption">The corridor today, drawn as ground. Each piece of the road is one kilometre in its band.</p>
+      </motion.div>
     </header>
   );
 }

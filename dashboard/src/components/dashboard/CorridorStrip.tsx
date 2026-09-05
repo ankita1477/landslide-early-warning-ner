@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { SegmentSummary } from "../../lib/useDashboardState";
-import { TIER_COLOR } from "../../theme";
+import { TIER_COLOR, TIER_WORD } from "../../theme";
+import type { Tier } from "../../api/client";
 
 interface Props {
   segments: SegmentSummary[];
@@ -52,10 +53,11 @@ export function CorridorStrip({
   return (
     <div className="strip">
       <div className="strip-head">
-        <h2 className="micro">Risk along the corridor</h2>
+        <h2 className="micro">Along the corridor</h2>
+        <span className="strip-hint">drag to narrow the list to a range</span>
         {brush && (
-          <button className="ghost tiny" onClick={() => onBrush(null)}>
-            clear range <span className="mono">{brush[0].toFixed(0)}–{brush[1].toFixed(0)} km</span>
+          <button className="btn btn-ghost btn-xs" onClick={() => onBrush(null)}>
+            clear <span className="mono">{brush[0].toFixed(0)}–{brush[1].toFixed(0)} km</span>
           </button>
         )}
       </div>
@@ -79,7 +81,7 @@ export function CorridorStrip({
                 stroke="var(--chart-grid)" strokeWidth={1} />
         ))}
 
-        <path d={riskPath} fill="none" stroke="var(--text-2)" strokeWidth={2}
+        <path d={riskPath} fill="none" stroke="var(--ink)" strokeWidth={1.8}
               strokeLinecap="round" strokeLinejoin="round" />
 
         {ordered.map((s) => {
@@ -88,7 +90,7 @@ export function CorridorStrip({
           return (
             <rect key={s.id} x={x(s.chainage_km)} y={H - PAD.bottom - CELL_H}
                   width={cellW} height={CELL_H} rx={2}
-                  fill={TIER_COLOR[s.tier]} fillOpacity={dim ? 0.12 : 0.92}
+                  fill={TIER_COLOR[s.tier]} fillOpacity={dim ? 0.14 : 1}
                   onMouseEnter={() => setHover(s)}
                   onClick={() => onSelect(s.id)} style={{ cursor: "pointer" }} />
           );
@@ -96,32 +98,32 @@ export function CorridorStrip({
 
         {brush && (
           <rect x={x(brush[0])} width={x(brush[1]) - x(brush[0])} y={PAD.top}
-                height={H - PAD.top - PAD.bottom} fill="rgba(255,255,255,.07)"
-                stroke="rgba(255,255,255,.2)" />
+                height={H - PAD.top - PAD.bottom} fill="rgba(20,28,38,.06)"
+                stroke="rgba(20,28,38,.3)" />
         )}
         {drag && Math.abs(drag.to - drag.from) > 0.5 && (
           <rect x={x(Math.min(drag.from, drag.to))}
                 width={Math.abs(x(drag.to) - x(drag.from))} y={PAD.top}
-                height={H - PAD.top - PAD.bottom} fill="rgba(255,255,255,.1)" />
+                height={H - PAD.top - PAD.bottom} fill="rgba(20,28,38,.08)" />
         )}
 
         {selectedId && ordered.find((s) => s.id === selectedId) && (
           <line x1={x(ordered.find((s) => s.id === selectedId)!.chainage_km)}
                 x2={x(ordered.find((s) => s.id === selectedId)!.chainage_km)}
-                y1={PAD.top} y2={H - PAD.bottom} stroke="var(--text-1)" strokeWidth={1.5} />
+                y1={PAD.top} y2={H - PAD.bottom} stroke="var(--ink)" strokeWidth={1.5} />
         )}
 
         {[0, 20, 40, 60, 80, 100].map((km) => (
           <text key={km} x={x(km)} y={H - 8} className="strip-tick mono"
-                textAnchor="middle" fill="var(--text-3)">{km}</text>
+                textAnchor="middle" fill="var(--ink-3)">{km}</text>
         ))}
         <text x={PAD.left - 8} y={PAD.top + 8} textAnchor="end" className="strip-tick mono"
-              fill="var(--text-3)">risk</text>
+              fill="var(--ink-3)">risk</text>
       </svg>
 
       {hover && (
         <div className="strip-tip mono">
-          km {hover.chainage_km.toFixed(1)} · {hover.risk.toFixed(4)} · {hover.tier}
+          km {hover.chainage_km.toFixed(1)} · {hover.risk.toFixed(4)} · {TIER_WORD[hover.tier as Tier]}
         </div>
       )}
     </div>
