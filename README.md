@@ -21,12 +21,13 @@ Built and validated on the **NH-10 Sevoke–Gangtok pilot corridor** — 109.6 k
 
 The binding constraint is not the model. It is inventory location error: detection is **28% for events within 1 km of the corridor and 8% beyond it**, because the global catalogues locate most landslides to 5–25 km.
 
-Full figures, including what did not work and why, in [§16A Results](#16a-results). SMS dispatch is built and tested but runs dry — it has no provider credentials, and only English has been through review, so no other language will send. `make alerts` reports exactly what could and could not reach a phone.
+This README describes both the system as designed and the pilot as built. Where they differ, [§0](#0-what-is-built-what-is-designed) says which is which, and every section that is still design is labelled. Full figures, including what did not work and why, in [§16A Results](#16a-results). SMS dispatch is built and tested but runs dry — it has no provider credentials, and only English has been through review, so no other language will send. `make alerts` reports exactly what could and could not reach a phone.
 
 ---
 
 ## Table of Contents
 
+0. [What Is Built, What Is Designed](#0-what-is-built-what-is-designed)
 1. [Motivation](#1-motivation)
 2. [Objectives](#2-objectives)
 3. [Risk Formulation](#3-risk-formulation)
@@ -52,6 +53,25 @@ Full figures, including what did not work and why, in [§16A Results](#16a-resul
 22. [Limitations & Ethical Considerations](#22-limitations--ethical-considerations)
 23. [Project Roadmap](#23-project-roadmap)
 24. [References](#24-references)
+
+---
+
+## 0. What Is Built, What Is Designed
+
+The repository is a working pilot on one corridor plus the design for the full regional system. The two are kept apart so that nothing here is claimed by implication.
+
+| Component | Built and measured | Design only |
+|---|---|---|
+| **Terrain & susceptibility** | Copernicus GLO-30 derivatives via WhiteboxTools, 9 features, XGBoost, spatially blocked CV, 30 m raster | Lithology, soil, NDVI and structural features; transfer learning from other ranges |
+| **Rainfall trigger** | CHIRPS and IMERG via Earth Engine, antecedent features, calibrated logistic regression, 24 h horizon, temporal validation | LSTM sequence model; 48 / 72 h horizons; SMAP soil moisture; IMD station bias correction |
+| **Deformation** | LiCSAR interferograms read by byte range, coherence masking, chain integration, per-segment creep state and coverage flag | Running the SBAS chain from SLCs in SNAP / ISCE2 |
+| **Exposure & fusion** | OSM settlements and facilities, runout reach, 90th-percentile aggregation, per-corridor tier calibration, 116 segments | WorldPop density, traffic proxy, per-habitation scores |
+| **Validation** | 2016-07-21 hindcast, 42-event walk-forward lead-time study | — |
+| **API** | FastAPI, 7 read endpoints, file-backed (GeoParquet), scoped CORS | PostGIS / TimescaleDB, Redis, TiTiler, auth, alert subscription, report intake |
+| **Dashboard** | React + MapLibre console: map, ranked list, corridor strip, inspector, table, keyboard, light / dark / system | Historical replay, SHAP waterfall, outcome feedback, OGC export |
+| **Citizen app** | **Landsafe NER** (Expo / React Native): today's reading, road map, journey check, alert history, safety guide, on-device report queue, offline cache | Push before storm onset, safe-route re-routing, regional languages, report upload |
+| **Alerting** | Escalation-only SMS dispatcher, MSG91 gateway, review-gated templates in 8 languages, readiness report (`make alerts`) | IVR, delivery-receipt escalation, recalibration loop. **No credentials are configured, so nothing sends; only English has been reviewed** |
+| **Operations** | GitHub Actions (tests, lint, types, dashboard build, app tests), Docker Compose for the designed database stack | Kubernetes, Prometheus / Grafana, Prefect scheduling, MLflow / DVC |
 
 ---
 
@@ -107,7 +127,7 @@ Component by component:
 | Symbol | Meaning | Range | Source layer | Update cadence |
 |---|---|---|---|---|
 | `S` | Static susceptibility — intrinsic weakness of the slope | 0–1 | Layer 1 (XGBoost) | Seasonal |
-| `P_t` | Trigger probability at horizon *t* ∈ {24, 48, 72} h | 0–1 | Layer 2 (LSTM) | Every 3 hours |
+| `P_t` | Trigger probability at horizon *t* — 24 h built; 48 and 72 h designed | 0–1 | Layer 2 (calibrated logistic regression) | Daily in the pilot; 3-hourly designed |
 | `D` | Deformation modifier from creep state | 1.0–1.5 | Layer 3 (InSAR) | Every 6–12 days |
 | `E` | Normalised exposure weight | 0–1 | Exposure layer | Static / annual |
 
@@ -126,14 +146,14 @@ The deformation modifier `D` is an **amplifier, not a standalone predictor.** A 
 
 Four graded tiers, deliberately aligned with the existing IMD colour convention so that no retraining of officials is required.
 
-| Tier | Risk score `R` | Meaning | Recommended action |
+| Tier | Meaning | Recommended action | NH-10 threshold (calibrated) |
 |---|---|---|---|
-| 🟢 **Green** | 0.00 – 0.25 | Normal | Routine monitoring |
-| 🟡 **Yellow** | 0.25 – 0.50 | Watch | Inspect drains and culverts; brief field staff |
-| 🟠 **Orange** | 0.50 – 0.75 | Alert | Pre-position clearing equipment; advise avoiding the segment at night |
-| 🔴 **Red** | 0.75 – 1.00 | Warning | Restrict traffic; prepare evacuation of flagged habitations |
+| **Green** | Normal | Routine monitoring | below 0.0043 |
+| **Yellow** | Watch | Inspect drains and culverts; brief field staff | ≥ 0.0043 |
+| **Orange** | Alert | Pre-position clearing equipment; advise avoiding the segment at night | ≥ 0.0054 |
+| **Red** | Warning | Restrict traffic; prepare evacuation of flagged habitations | ≥ 0.0069 |
 
-Thresholds are **not hard-coded constants** — they are calibrated per corridor against the historical inventory and are recalibrated from the official feedback loop (see §9.4).
+Thresholds are **not hard-coded constants.** The calibrated trigger probabilities are small numbers — a daily event rate of 0.8% is the truth of this corridor — so the fixed 0.25 / 0.50 / 0.75 cut-points of the original design would never fire. Instead the cut-points are fitted per corridor from the risk distribution's own frequencies (`models/fusion/risk.py`), served by `GET /risk/tiers`, and the hindcast refuses to score itself against thresholds derived from the window being replayed. Recalibration from official feedback (§9.4) is designed, not built.
 
 ---
 
@@ -241,36 +261,38 @@ That single decision is what makes the system deployable across all eight states
 
 ### 4.7 High-Level View (Detailed)
 
+*The diagrams in 4.7–4.9 show the full design. §0 says which boxes exist in the pilot; the built path is Earth Engine and public archives → `ingestion/` → `processing/` → `models/` → GeoParquet → FastAPI → dashboard and app.*
+
 ```mermaid
 flowchart TB
     subgraph SRC["🛰️  Data Sources (all free / public)"]
         S1["Sentinel-1 SLC<br/>radar, 6-12 day"]
         S2["Sentinel-2 / Landsat<br/>optical, NDVI"]
         GPM["GPM IMERG<br/>rainfall, 30 min"]
-        IMD["IMD gridded +<br/>AWS stations"]
-        SMAP["SMAP<br/>soil moisture"]
-        DEM["CartoDEM / SRTM<br/>30 m terrain"]
-        INV["GSI NLSM +<br/>NASA COOLR inventory"]
+        IMD["IMD gridded +<br/>AWS stations (designed)"]
+        SMAP["SMAP<br/>soil moisture (designed)"]
+        DEM["Copernicus GLO-30<br/>30 m terrain"]
+        INV["Sikkim inventory (Zenodo)<br/>+ NASA GLC dates"]
         OSM["OSM roads / WorldPop<br/>exposure"]
     end
 
     subgraph ING["⚙️  Ingestion & Orchestration"]
-        PF["Prefect / Airflow<br/>scheduled flows"]
+        PF["Prefect (designed)<br/>scheduled flows"]
         GEE["Google Earth Engine<br/>server-side raster ops"]
     end
 
     subgraph PROC["🧮  Processing"]
         DER["DEM derivatives<br/>slope, aspect, TWI, SPI"]
-        INSAR["SBAS-InSAR chain<br/>SNAP / ISCE2"]
+        INSAR["LiCSAR interferograms<br/>chain integration"]
         STACK["Feature stack assembly<br/>rasterio / xarray"]
     end
 
     subgraph MOD["🧠  Model Layer"]
         L1["Layer 1<br/>XGBoost susceptibility"]
-        L2["Layer 2<br/>LSTM rainfall trigger"]
-        L3["Layer 3<br/>ruptures change-point"]
+        L2["Layer 2<br/>calibrated rainfall trigger"]
+        L3["Layer 3<br/>creep change-point"]
         FUSE["Risk fusion engine"]
-        SHAP["SHAP explainer"]
+        SHAP["Factor components<br/>(SHAP designed)"]
     end
 
     subgraph STORE["🗄️  Storage"]
@@ -323,7 +345,7 @@ sequenceDiagram
     FUS->>L3: read latest creep state per polygon
     L3-->>FUS: deformation modifier D
     FUS->>FUS: R = S × P × D × E per segment
-    FUS->>DB: upsert risk_scores + SHAP attribution
+    FUS->>DB: write risk scores + factor components
     FUS->>ALR: segments crossing tier boundary
     ALR->>U: push / SMS / IVR in preferred language
     U-->>DB: outcome feedback (occurred / not)
@@ -343,7 +365,7 @@ sequenceDiagram
 │  Fusion · tier calibration · exposure weighting · explainability    │
 ├─────────────────────────────────────────────────────────────────────┤
 │  MODEL                                                              │
-│  XGBoost susceptibility · LSTM trigger · change-point detector      │
+│  XGBoost susceptibility · calibrated trigger · change-point detector│
 ├─────────────────────────────────────────────────────────────────────┤
 │  PROCESSING                                                         │
 │  DEM derivatives · InSAR SBAS chain · cloud masking · feature stack │
@@ -366,26 +388,27 @@ sequenceDiagram
 
 ### 5.1 Model
 
-A gradient-boosted decision tree classifier (**XGBoost**) trained on the GSI National Landslide Susceptibility Mapping inventory and the NASA COOLR event catalogue. Output is a continuous susceptibility raster at 30 m, refreshed seasonally (post-monsoon, when new failures and new vegetation state are available).
+A gradient-boosted decision tree classifier (**XGBoost**) trained on **175 mapped landslide polygons** from the multi-temporal Sikkim inventory (Zenodo, CC-BY), against 350 constructed negatives. Output is a continuous susceptibility raster at 30 m over the pilot AOI. The GSI Bhukosh inventory that the design names is not reachable from outside India and had to be dropped; the NASA Global Landslide Catalog was loaded but its points are geocoded to settlements — 5 to 25 km from the scarp, which is 167 to 833 pixels at 30 m — so it supplies event *dates* to Layer 2 and no *locations* to Layer 1.
 
 Gradient boosting is chosen over deep CNN approaches for three reasons: the inventory is small and sparse (hundreds to low thousands of labelled events, not millions), tabular terrain features are already physically meaningful so learned convolutional features add little, and tree ensembles are directly interpretable through SHAP — which the alerting requirement demands.
 
 ### 5.2 Feature Set
 
+The nine features the model actually uses (`processing/dem/derivatives.py`, `processing/proximity.py`):
+
 | Group | Features | Derived from |
 |---|---|---|
-| **Topography** | Slope angle, aspect (sin/cos encoded), plan curvature, profile curvature, relative relief, elevation | CartoDEM / SRTM 30 m |
-| **Hydrology** | Topographic Wetness Index (TWI), Stream Power Index (SPI), distance to drainage, flow accumulation | DEM-derived |
-| **Anthropogenic** | Distance to road cuts, road-cut density, distance to settlements | OSM + Bhuvan |
-| **Structural** | Distance to lineaments, distance to mapped faults, lithology class, weathering grade | GSI geological layers |
-| **Soil** | Soil texture class, soil depth, drainage class | NBSS&LUP |
-| **Vegetation** | NDVI (seasonal mean and dry-season minimum), land-cover class, forest-loss flag | Sentinel-2 / Landsat |
+| **Topography** | Slope angle, aspect as `(sin θ, cos θ)`, plan curvature, profile curvature, elevation | Copernicus GLO-30, 30 m, via WhiteboxTools |
+| **Hydrology** | Topographic Wetness Index (TWI), Stream Power Index (SPI) | DEM-derived, after `fill_depressions_wang_and_liu` |
+| **Anthropogenic** | Distance to road | OSM highways clipped to the AOI |
+
+Designed but not built — the data either needs an Indian institutional login or was out of scope for the pilot: structural (lineaments, faults, lithology), soil (NBSS&LUP), vegetation (NDVI, land cover) and relative relief. Their absence is stated on the dashboard's inspector rather than filled in.
 
 Feature engineering notes:
 - **Aspect is circular.** It is encoded as `(sin θ, cos θ)`, never as raw degrees — a naive 0–360 encoding puts north-facing 359° and 1° slopes at opposite ends of the feature space.
 - **TWI** = `ln(a / tan β)` where `a` is upslope contributing area per unit contour width and `β` is local slope. It captures where water accumulates and pore pressure builds.
 - **SPI** = `a × tan β`, capturing erosive power of concentrated flow.
-- Categorical layers (lithology, soil, land cover) are target-encoded with out-of-fold statistics to avoid leakage.
+- Elevation is a **trend-dominated** feature at this scale, so it is excluded when fitting the variogram that sets the spatial block size (§16.1), or it would report blocks wider than the corridor.
 
 ### 5.3 Negative Sampling
 
@@ -393,14 +416,16 @@ Landslide inventories record only positives. Negatives must be constructed, and 
 
 1. Sample candidate negatives **only from slopes above a minimum gradient** (a flat floodplain pixel is a trivially easy negative and inflates accuracy without adding skill).
 2. Enforce a **minimum buffer distance** from any recorded event, so that the immediate surroundings of a real failure are not labelled stable.
-3. Match the **elevation and lithology distribution** of the positive set, so the classifier cannot separate classes on a proxy variable.
-4. Maintain a **1:2 positive-to-negative ratio**, with SMOTE applied to the minority class *inside each training fold only*.
+3. Match the **elevation distribution** of the positive set, so the classifier cannot separate classes on altitude rather than on process.
+4. Maintain a **1:2 positive-to-negative ratio** (175 : 350). SMOTE was in the design and is not used: with balanced class weights the minority is learnable as it is, and synthetic positives on a 30 m grid are synthetic hillsides.
+
+All three guards are implemented in `models/susceptibility/dataset.py` (`MIN_SLOPE_DEG = 10`, `BUFFER_M = 500`, `NEGATIVE_RATIO = 2`) and tested.
 
 ### 5.4 Handling a Sparse Inventory
 
-- **Transfer learning** from the substantially denser Himachal Pradesh and Uttarakhand inventories: pre-train on the Western Himalaya, fine-tune on NER events.
-- **Continuous inventory growth** from citizen geotagged reports of cracks and minor slips, which flow back into the training set after moderation.
-- Class weighting via `scale_pos_weight` rather than aggressive oversampling alone.
+- **What the pilot does:** class weighting rather than oversampling, and reporting both the blocked and the random-split AUC so the gap between them (the spatial leakage a naive split hides) is visible.
+- **Designed, not built:** transfer learning from the denser Himachal Pradesh and Uttarakhand inventories, and inventory growth from moderated citizen reports. The app queues reports on the device today; no endpoint receives them yet.
+- The honest finding is in §16A: the inventory's *location error*, not the model, is the binding constraint on this corridor.
 
 ---
 
@@ -410,50 +435,45 @@ Landslide inventories record only positives. Negatives must be constructed, and 
 
 ### 6.1 Model
 
-An **LSTM sequence model** over rainfall history. Sequence models are appropriate here because landslide triggering is fundamentally a memory process: it is not today's rainfall that fails a slope but today's rainfall arriving on a slope already saturated by three weeks of monsoon.
+**Built:** a regularised **logistic regression** over antecedent-rainfall features, with **sigmoid probability calibration** fitted by `TimeSeriesSplit` (`models/trigger/model.py`).
+
+**Designed:** an LSTM over 30-day hourly rainfall sequences. That is the right model with thousands of labelled events. This corridor has **51** dated events in the rainfall record, and a recurrent network over 51 positives memorises them. The regression uses the same information the LSTM would have to rediscover — accumulations over increasing windows — and can be validated honestly at this sample size.
 
 ```
-Input sequence  →  [B, T=720, F]     T = 30 days at hourly resolution
-                        │
-                 ┌──────▼──────┐
-                 │  LSTM (2×)  │     hidden = 128, dropout = 0.2
-                 └──────┬──────┘
-                        │  last hidden state
-                 ┌──────▼──────┐
-                 │  concat     │  ← static context: susceptibility,
-                 │  static ctx │     elevation band, lithology embedding
-                 └──────┬──────┘
-                 ┌──────▼──────┐
-                 │  Dense 64   │  ReLU
-                 └──────┬──────┘
-                 ┌──────▼──────┐
-                 │  Dense 3    │  sigmoid → P(24h), P(48h), P(72h)
-                 └─────────────┘
+rain_1d, rain_3d, rain_7d, rain_15d, rain_30d      per event date and per matched non-event day
+        │
+  StandardScaler → LogisticRegression(class_weight="balanced")
+        │
+  CalibratedClassifierCV(method="sigmoid", cv=TimeSeriesSplit(4))
+        │
+  P(failure within 24 h)
 ```
+
+Splits are **temporal, never random**: earlier monsoons train, later monsoons test. A random split puts one day of a storm in train and the next in test, and the model then "predicts" weather it has already seen.
 
 ### 6.2 Input Features
 
-| Feature | Description |
-|---|---|
-| Hourly precipitation | GPM IMERG half-hourly, aggregated to hourly |
-| Antecedent accumulations | Rolling sums at **3, 7, 15 and 30 days** |
-| Storm intensity–duration | Peak intensity, mean intensity, duration of the current rainfall event |
-| I–D threshold exceedance | Ratio of observed `(I, D)` to the Guzzetti regional threshold curve |
-| Soil moisture | SMAP surface and root-zone moisture, gap-filled and downscaled |
-| API | Antecedent Precipitation Index with a decay constant fitted per lithology |
-| Seasonality | Day-of-monsoon encoded cyclically |
+| Feature | Built | Description |
+|---|---|---|
+| Antecedent accumulations | ✓ | Daily rainfall summed over **1, 3, 7, 15 and 30 days**, from CHIRPS (daily, ~5 km) via Earth Engine; IMERG V07 (half-hourly, ~11 km) for sub-daily storm structure |
+| Storm intensity–duration | ✓ extracted | Peak and mean intensity and duration of the current event, from IMERG half-hourly, with the half-step correction that a first-to-last-wet-timestamp span otherwise drops |
+| I–D threshold exceedance | ✗ | Could not be fitted — see 6.3 |
+| Soil moisture (SMAP) | ✗ | Designed |
+| Antecedent Precipitation Index, seasonality | ✗ | Designed |
+
+Because both rainfall products are coarser than the inventory's positional error, the imprecise landslide *locations* that ruin terrain modelling do not matter here — the pixel is the same either way. What matters is the event *date*, and the dates are reliable.
 
 ### 6.3 Intensity–Duration Threshold
 
-A classical Guzzetti-style power-law threshold is retained as an interpretable baseline and as a physical sanity check on the LSTM:
+A classical Guzzetti-style power-law threshold was to be retained as an interpretable baseline:
 
 $$I = \alpha \cdot D^{-\beta}$$
 
-where `I` is mean rainfall intensity (mm/h), `D` is duration (h), and `α`, `β` are fitted regionally from the inventory. Any LSTM prediction that fires far below the fitted threshold curve is logged for review rather than silently trusted — this catches the model latching onto a spurious seasonal correlate.
+It **could not be fitted to this inventory.** At every gap setting from 0.5 to 12 h the fitted exponent has the wrong sign (β = −0.406): recorded events show *higher* intensity with *longer* duration, which is physically backwards and most likely reporting bias — long, intense storms are the ones that get an event written down. `models/trigger/thresholds.py` raises `UnphysicalThreshold` rather than return a curve that would pass a sanity check it has already failed.
 
-### 6.4 Loss & Imbalance
+### 6.4 Imbalance and Calibration
 
-Failure events are extremely rare in a per-hour, per-cell framing (well under 0.1% positives). Training uses **focal loss** with `γ = 2` to stop the vast easy-negative majority from dominating the gradient, plus temporal negative mining that preferentially samples high-rainfall non-failure windows — the hard negatives that teach the model where the real boundary is.
+Events occur on 0.8% of corridor-days. Balanced class weights are what make 51 positives learnable, but they fit a balanced prior: raw outputs read 0.64 where the true frequency is 0.008. That is harmless for ranking and fatal downstream, because risk is compared against absolute tier thresholds. Calibration brought the Brier score from **0.2440 to 0.0043** and is the reason the tier cut-points in §3 are the numbers they are. Focal loss and hard-negative mining, from the LSTM design, are not used.
 
 ---
 
@@ -468,6 +488,8 @@ This is the differentiating layer of the project. Rainfall-only models are, in t
 **Interferometric Synthetic Aperture Radar (InSAR)** compares the phase of radar returns from repeat satellite passes over the same ground. A change in phase between two acquisitions corresponds to a change in the sensor-to-ground distance — line-of-sight (LOS) displacement — measurable to **millimetre precision**. Sentinel-1 provides this free of charge on a 6–12 day repeat cycle, and, critically, **radar penetrates cloud**, which matters in a region where optical imagery is useless for the entire monsoon.
 
 ### 7.2 Processing Chain (SBAS)
+
+*Steps A–I below are performed by **COMET-LiCSAR**, which publishes unwrapped, geocoded interferograms for the Himalaya. Processing SLCs locally in SNAP or ISCE2 — the original design — means ~10 GB per acquisition; the pilot instead reads LiCSAR frame `048D_06252_131313` by HTTP byte range (`ingestion/clients/insar.py`), then does chain integration and epoch referencing itself (`processing/insar/`).*
 
 ```mermaid
 flowchart LR
@@ -507,6 +529,8 @@ Dense vegetation causes InSAR decorrelation, and NER is densely vegetated. The s
 - Deformation confidence is restricted to pixels above the coherence threshold.
 - Every risk score carries a **coverage flag** — `full`, `partial`, or `none` — describing InSAR support for that segment.
 - Where coverage is `none`, `D` defaults to 1.0 and the dashboard states plainly that the deformation layer is unavailable there.
+
+On NH-10 this is the whole story: median coherence is **0.095 against the 0.30 threshold**, 37 of 116 segments are observable, all of them stable, and no public LiCSAR product predates March 2025 — so Layer 3 cannot improve any historical result either. §16A has the figures.
 
 Reporting a coverage gap honestly is the correct engineering choice; a smoothly interpolated map that quietly invents data in exactly the places it cannot see is worse than no map at all.
 
@@ -551,42 +575,59 @@ Delivery is **deliberately redundant**, because the network conditions during th
 
 ### 9.1 Officials' Dashboard
 
-Audience: PWD, BRO, NDRF, State Disaster Management Authorities, district control rooms.
+Audience: PWD, BRO, NDRF, State Disaster Management Authorities, district control rooms. Built in `dashboard/` — React, TypeScript, MapLibre GL, Radix primitives, lucide icons.
 
-| Feature | Description |
+| Feature | Built | Description |
+|---|---|---|
+| **Map** | ✓ | MapLibre GL over a desaturated OSM basemap; 116 segments coloured by band, with severity also encoded in **line width** (2 / 4 / 6 / 8 px) and a dash on Warning, so it survives greyscale and colour-vision deficiency. Single-layer views (susceptibility, trigger, deformation, exposure) on a neutral ramp |
+| **Ranked list** | ✓ | Every kilometre sorted by risk or chainage, score bar per row, jump-to-km search, CSV export. Band filters and a drag-to-brush range on the strip narrow it |
+| **Corridor strip** | ✓ | The whole road as a linear profile — the one view a folded mountain road cannot give on a map |
+| **Inspector** | ✓ | Per-segment score meter against the calibrated thresholds, the four factor components as a bar, antecedent-rainfall sparkline, terrain features, nearby mapped scars, InSAR coverage; JSON export. Empty state carries the corridor summary |
+| **Table view** | ✓ | Every value on screen reachable as text — what makes the colour encodings legal rather than merely mitigated |
+| **Keyboard** | ✓ | Arrow keys, 1–4 band toggles, `c`, `t`, `?`, `Esc` |
+| **Appearance** | ✓ | Light, dark, or follow the system; a high-contrast band mode ordered by lightness alone |
+| **Per-alert explanation** | partial | The multiplicative components are shown; the SHAP waterfall over terrain features is designed |
+| **Historical replay** | ✗ | The API serves one scored run; no per-day history is stored yet |
+| **Deformation inspector** | ✗ | Designed; there is nothing observable to plot on this corridor |
+| **Outcome feedback, OGC export** | ✗ | Designed |
+
+### 9.2 Citizen App — Landsafe NER
+
+Built in `citizen-app/` — Expo SDK 57 / React Native, Android-first. Five places and three pushed pages, in plain language: no score, probability, model name or "API" is ever shown to a citizen.
+
+| Screen | What it does |
 |---|---|
-| **Map view** | MapLibre GL, vector risk layers over terrain basemap; tier-coloured road segments |
-| **Ranked watchlist** | Top-N highest-risk road kilometres, sortable by risk, tier change, or lead time |
-| **Per-alert explanation** | SHAP waterfall showing which factors drove the score — rainfall accumulation, slope, creep state, distance to road cut |
-| **Historical replay** | Scrub any past date range and watch risk evolve; used both for training officials and for post-event review |
-| **Deformation inspector** | Displacement time series plot per slope, with detected change points marked |
-| **Outcome feedback** | Officials mark whether a failure occurred, feeding threshold recalibration |
-| **Export** | GeoJSON / OGC WMS-WFS for ingestion into existing state GIS |
+| **Today** | The band for the stretch the phone is on (Sevoke if location is off), as a word, an illustration of the hillside, the reasons in one sentence each, and what to do. The whole road as a strip |
+| **Road** | The corridor drawn from its own geometry — works offline, no tile key — every kilometre tappable |
+| **Route** | Sevoke-to-Gangtok journeys checked kilometre by kilometre; the worst band on the way, and where it is |
+| **Report** | Road blocked, falling rocks, cracks, water — with a photo and location. **Queued on the device**: no endpoint receives reports yet, and the screen says so |
+| **More** | Alert history recorded on the phone, the safety guide, emergency numbers, and where the advice comes from |
 
-### 9.2 Citizen Mobile App
+Behaviour that is built: the last reading is cached and served when the network fails, with its age stated; a banner drops only when the band on the user's stretch **escalates** (the same rule as the SMS dispatcher); the API host is derived from the address Expo delivered the bundle from, so a phone on the same wifi needs no configuration.
 
-React Native, Android-first (the dominant platform in the target districts).
-
-- **Location-based alerts** for the user's registered home and travel corridors.
-- **Safe-route guidance** — routes weighted to avoid Orange/Red segments where an alternative exists.
-- **Geotagged photo reporting** of observed cracks, seepage or minor slips. This is not decoration: moderated reports feed straight back into the training inventory and steadily improve the model in a region where the inventory is the binding constraint.
-- **Offline mode** — the last-cached risk layer and safe-route map remain usable with no connectivity.
-- **Pre-push before storm onset** — alerts are pushed *ahead* of the predicted rainfall window, while the network is still up.
+Designed, not built: push before storm onset, safe-route re-routing where an alternative exists, registered home corridors, regional-language interface, report upload and moderation.
 
 ### 9.3 SMS & IVR Fallback
 
-Supported languages: **Assamese, Khasi, Mizo, Bodo, Nyishi, Manipuri** (plus Hindi and English).
+Designed for **Assamese, Khasi, Mizo, Bodo, Nyishi, Manipuri**, Hindi and English; voice calls survive when data does not, and this is the single design choice that determines whether the system saves lives or produces reports.
 
-Voice calls survive when data does not, and this is the single design choice that determines whether the system saves lives or produces reports. IVR delivers a pre-recorded message per tier per language, assembled from templated segments with the location name spliced in. Delivery receipts are tracked so that undelivered alerts can be escalated to the local control room for manual relay.
+What is built (`alerting/`):
+
+- **Escalation-only dispatch.** An alert fires when a segment's band *worsens* to Orange or Red, never on every scoring cycle — a segment at Red for four days is one event, not thirty-two messages. De-escalation is silent; an "all clear" while the ground is saturated is a worse error than saying nothing.
+- **Review-gated templates.** Every (tier, language) pair carries a status — `reviewed`, `draft`, `missing` — and a draft is never sent. If the requested language is not reviewed the dispatcher falls back to one that is, rather than sending machine text about an evacuation.
+- **Gateways:** MSG91 adapter and a console gateway for dry runs.
+- **Readiness report.** `make alerts` prints which gateway is configured, which languages can actually be sent, and the coverage grid.
+
+What that report says today: **no provider credentials, so nothing reaches a phone; only English is reviewed.** IVR, delivery receipts and the escalation-to-control-room roster are designed, not built.
 
 ```
-Alert raised → template selected by (tier, language)
-             → SMS via gateway  ──► delivery receipt logged
-             → IVR call queued  ──► answered / unanswered / retry ×3
-             → unanswered after retries → escalate to control room roster
+Alert raised → template selected by (tier, language)      built
+             → SMS via gateway  ──► delivery receipt      built / designed
+             → IVR call queued  ──► retry ×3              designed
+             → unanswered → escalate to control room      designed
 ```
 
-### 9.4 Feedback & Recalibration Loop
+### 9.4 Feedback & Recalibration Loop *(designed)*
 
 False alarms erode official trust faster than missed events erode it, because officials experience false alarms far more often. The system therefore treats calibration as a first-class, continuously running process:
 
@@ -595,43 +636,65 @@ False alarms erode official trust faster than missed events erode it, because of
 3. A scheduled job recomputes per-tier precision and the false-alarm rate per hundred alerts.
 4. Tier thresholds are re-fit per corridor to hold false alarms within an operationally agreed budget while maximising recall at the Red tier.
 
+None of this loop exists yet; thresholds are calibrated once from the risk distribution (§3).
+
+### 9.5 Design System
+
+The two interfaces share one rule and one ramp, and are otherwise deliberately different products.
+
+| | Dashboard (`dashboard/`) | Citizen app (`citizen-app/`) |
+|---|---|---|
+| Ground | Cool fog, white panels; light, dark and system modes | Warm paper, light only — more legible in daylight through a rain-spotted screen |
+| Type | IBM Plex Serif for headlines, Plex Sans for the interface, Plex Mono for every number | Fraunces for the lines that carry the message, Instrument Sans for everything read fast |
+| Controls | Radix primitives, lucide icons | react-native-paper under a custom theme, lucide icons |
+| Colour | No brand hue. Ink for every control; the only saturated colour is data | Same |
+
+The risk ramp — moss `#3A8F5A`, amber `#D9A21B`, ember `#E0662B`, brick `#C8362B` — is the same hex in both, with a darker ink shade of each for text and a wash for large fields, so a person and a control room never see one kilometre in two colours. Model-layer identity uses a separate categorical palette that cannot be mistaken for a band. Nothing a person needs is ever gated behind an opacity animation; entrance motion moves or scales, and data-bearing dimensions are set directly.
+
 ---
 
 ## 10. Technology Stack
 
-| Layer | Components | Technology |
+What runs in the pilot, and beside it what the full design adds.
+
+| Layer | Built | Designed in addition |
 |---|---|---|
-| **Data Ingestion** | Scheduled pulls of Sentinel-1 SLC, Sentinel-2, GPM IMERG, IMD grids, SMAP, CartoDEM, GSI inventory | Prefect / Airflow, Google Earth Engine, Sentinel Hub API, `sentinelsat` |
-| **Processing** | DEM derivative computation, InSAR interferogram generation, cloud masking, feature stack assembly | Google Earth Engine, Python, `rasterio`, `xarray`, `richdem`, SNAP / ISCE2, SNAPHU |
-| **Models** | Susceptibility classifier, rainfall trigger sequence model, deformation change-point detector, explainability | XGBoost, PyTorch (LSTM), `ruptures`, SHAP |
-| **Storage** | Vector risk layers, raster tiles, rainfall and displacement time series | PostgreSQL + PostGIS, TimescaleDB, MinIO / S3 for COGs |
-| **API & Serving** | Risk queries, alert subscription, tile server, admin endpoints | FastAPI, Pydantic, Redis cache, TiTiler |
-| **Interfaces** | Officials' web dashboard, citizen mobile app, SMS/IVR gateway | React + TypeScript + MapLibre GL, React Native, Twilio / MSG91 |
-| **Deployment** | Containerised services, scheduled retraining, monitoring | Docker, Docker Compose (dev), Kubernetes (prod), GitHub Actions, Prometheus + Grafana |
-| **Quality** | Testing, linting, typing, reproducibility | pytest, ruff, mypy, DVC, MLflow |
+| **Data ingestion** | Google Earth Engine (`earthengine-api`) for CHIRPS and IMERG; public AWS for Copernicus GLO-30; OSMnx for roads, settlements and facilities; LiCSAR HTTP byte-range reads for Sentinel-1 interferograms; NASA GLC and the Zenodo Sikkim inventory | Prefect scheduling, Sentinel-2 / NDVI, SMAP, IMD stations, GSI Bhukosh |
+| **Processing** | `rasterio`, `xarray`, `geopandas`, WhiteboxTools (`richdem` has no arm64 wheel and does not compile against current clang) | SNAP / ISCE2 / SNAPHU for an SLC-to-displacement chain |
+| **Models** | XGBoost with spatially blocked CV; scikit-learn logistic regression with `CalibratedClassifierCV`; change-point detection on LOS velocity; NumPy fusion | PyTorch LSTM, SHAP attribution, `ruptures` at scale |
+| **Storage** | GeoParquet and COGs under `data/`, read directly by the API | PostgreSQL + PostGIS + TimescaleDB, MinIO / S3, Redis (the Compose stack exists; nothing writes to it) |
+| **API** | FastAPI, Pydantic, uvicorn; 7 read endpoints; CORS scoped to the two front-ends | TiTiler, auth and RBAC, alert subscription, report intake |
+| **Interfaces** | Dashboard: React 19, TypeScript, Vite, MapLibre GL 6, Radix, lucide, Framer Motion. App: Expo SDK 57, React Native, react-native-svg, react-native-paper, lucide, expo-location / image-picker / font | SMS via MSG91 (adapter built, no credentials); Twilio; IVR |
+| **Quality** | pytest (160 tests), ruff, mypy, Vitest (app), `tsc` on both front-ends, GitHub Actions | Locust load tests, testcontainers integration, MLflow, DVC |
 
 ### Why these choices
 
 - **Google Earth Engine** performs petabyte-scale raster operations server-side, eliminating the need for a GPU cluster or bulk imagery storage. This is the single decision that makes the system affordable enough to actually deploy.
 - **PostGIS + TimescaleDB** in one PostgreSQL instance keeps spatial joins and time-series rollups in the same query engine, avoiding a cross-database join on the hot alerting path.
 - **XGBoost over deep learning for Layer 1** — small tabular dataset, physically meaningful features, and native SHAP support that the explainability requirement makes non-negotiable.
-- **COGs + TiTiler** allow the dashboard to stream raster tiles directly from object storage with no pre-tiling step and no tile cache to invalidate on every model refresh.
+- **A file-backed API** (`api/store.py`) rather than the designed PostGIS: the pipeline already writes GeoParquet, and reading it gives a working service with no database to run. Access goes through one `RiskStore` class, so the database is a later swap, not a rewrite.
+- **LiCSAR instead of a local InSAR chain** — the difference between minutes per read and hours per interferogram, on a laptop.
+- **COGs + TiTiler** (designed) would let the dashboard stream raster tiles directly from object storage; the pilot draws the 116 segments as vector GeoJSON and needs no tile server.
 
 ---
 
 ## 11. Data Sources
 
-| Dataset | Source | Resolution / Cadence | Access |
+| Dataset | Source | Resolution / Cadence | Used in the pilot |
 |---|---|---|---|
-| **Radar deformation** | Sentinel-1 (ESA Copernicus) | 5–20 m, 6–12 day repeat | Free |
-| **Optical / NDVI** | Sentinel-2, Landsat 8/9 | 10–30 m, 5 day | Free |
-| **Rainfall (satellite)** | NASA GPM IMERG | ~10 km, 30 min | Free |
-| **Rainfall (in-situ)** | IMD AWS network & gridded product | Station / 0.25° | Public / MoU |
-| **Terrain** | CartoDEM (ISRO), SRTM, ALOS PALSAR | 30 m | Free |
-| **Landslide inventory** | GSI NLSM, NASA COOLR | Point events | Free / GSI Bhukosh portal |
-| **Soil moisture** | SMAP | 9 km, 2–3 day | Free |
-| **Lithology & soil** | GSI geological maps, NBSS&LUP | 1:50k vector | Public |
-| **Exposure** | OpenStreetMap roads, WorldPop, Bhuvan | Vector / 100 m | Free |
+| **Terrain** | Copernicus GLO-30 DEM, from the public AWS bucket | 30 m | ✓ no credentials needed |
+| **Rainfall, daily** | CHIRPS via Google Earth Engine | ~5 km, daily | ✓ trigger features |
+| **Rainfall, sub-daily** | NASA GPM IMERG V07 via Earth Engine | ~11 km, 30 min | ✓ storm intensity–duration |
+| **Radar deformation** | Sentinel-1 via COMET-LiCSAR interferograms | 100 m, 6–12 day | ✓ not observable here (coherence) |
+| **Landslide inventory, locations** | Multi-temporal Sikkim catalogue (Zenodo, CC-BY) | 175 mapped polygons | ✓ Layer 1 labels |
+| **Landslide inventory, dates** | NASA Global Landslide Catalog | Points, 5–25 km accuracy | ✓ Layer 2 event dates only |
+| **Roads and exposure** | OpenStreetMap via OSMnx | Vector | ✓ 116 segments, 123 settlements, 68 facilities |
+| **Inventory** | GSI Bhukosh | Mapped events | ✗ portal not reachable outside India |
+| **Rainfall (in-situ)** | IMD AWS network & gridded product | Station / 0.25° | ✗ designed |
+| **Optical / NDVI** | Sentinel-2, Landsat 8/9 | 10–30 m, 5 day | ✗ designed |
+| **Soil moisture** | SMAP | 9 km, 2–3 day | ✗ designed |
+| **Lithology & soil** | GSI geological maps, NBSS&LUP | 1:50k vector | ✗ designed |
+| **Population** | WorldPop | 100 m | ✗ designed; OSM place classes stand in |
 
 Every dataset in the operational path is **free and continuously refreshed**. No component depends on commercial imagery or on installed field sensors, which is what allows expansion from the pilot corridor to all eight NER states — and subsequently to the Western Himalaya and Western Ghats — to be a retraining exercise rather than a reinvestment.
 
@@ -639,121 +702,91 @@ Every dataset in the operational path is **free and continuously refreshed**. No
 
 ## 12. Repository Structure
 
+What is in the repository today. `data/` is produced by the pipeline and is git-ignored.
+
 ```
 major/
-├── README.md
-├── docker-compose.yml
-├── Makefile
-├── pyproject.toml
-├── .env.example
-│
-├── data/
-│   ├── raw/                     # immutable downloads (DVC-tracked, gitignored)
-│   ├── interim/                 # intermediate rasters
-│   ├── processed/               # model-ready feature stacks
-│   └── external/                # inventories, admin boundaries
+├── README.md · IMPLEMENTATION.md · Landslide_Early_Warning_NER.md
+├── Makefile · pyproject.toml · docker-compose.yml · .env.example
+├── .github/workflows/ci.yml     # Python tests/lint/types, dashboard build, app tests
+├── scripts/check-toolchain.sh
 │
 ├── ingestion/
-│   ├── flows/
-│   │   ├── rainfall_flow.py     # 3-hourly IMERG + IMD pull
-│   │   ├── sentinel1_flow.py    # SLC acquisition on each pass
-│   │   ├── sentinel2_flow.py    # NDVI refresh
-│   │   ├── smap_flow.py         # soil moisture
-│   │   └── inventory_flow.py    # GSI / COOLR sync
-│   ├── clients/                 # GEE, Sentinel Hub, IMD, NASA Earthdata
-│   └── provenance.py            # source, timestamp, checksum logging
+│   ├── aoi.py                   # pilot AOI, EPSG:32645
+│   └── clients/
+│       ├── dem.py               # Copernicus GLO-30 from public AWS
+│       ├── earthengine.py       # EE session
+│       ├── rainfall.py          # CHIRPS / IMERG at points; sub-daily storms
+│       ├── insar.py             # LiCSAR frames, windowed byte-range reads
+│       ├── inventory.py         # GLC, Sikkim polygons, fuzzy dedup, accuracy filter
+│       ├── roads.py             # OSM highways → 1 km chainage
+│       └── exposure.py          # OSM settlements and facilities
 │
 ├── processing/
-│   ├── dem/
-│   │   ├── derivatives.py       # slope, aspect, curvature, TWI, SPI
-│   │   └── hydrology.py         # flow accumulation, drainage
-│   ├── insar/
-│   │   ├── coregister.py
-│   │   ├── interferogram.py
-│   │   ├── unwrap.py            # SNAPHU wrapper
-│   │   ├── sbas.py              # time-series inversion
-│   │   └── coherence.py         # masking & coverage flags
-│   ├── optical/
-│   │   ├── cloud_mask.py
-│   │   └── ndvi.py
-│   └── featurestack.py          # aligned multi-band stack assembly
+│   ├── dem/derivatives.py       # slope, aspect, curvature, TWI, SPI (WhiteboxTools)
+│   ├── proximity.py             # distance to road
+│   ├── featurestack.py          # aligned feature stack
+│   └── insar/aggregate.py       # chain integration, referencing, per-segment series
 │
 ├── models/
 │   ├── susceptibility/
-│   │   ├── dataset.py           # sampling, negatives, encoding
-│   │   ├── train.py             # XGBoost + spatial CV
-│   │   ├── predict.py           # raster inference
-│   │   └── explain.py           # SHAP
+│   │   ├── dataset.py           # guarded negative sampling
+│   │   ├── spatial_cv.py        # variogram → block size; blocked folds
+│   │   └── train.py             # XGBoost; blocked and random AUC; raster inference
 │   ├── trigger/
-│   │   ├── sequences.py         # window construction
-│   │   ├── model.py             # LSTM definition
-│   │   ├── train.py             # focal loss, temporal split
-│   │   └── thresholds.py        # Guzzetti I–D baseline
-│   ├── deformation/
-│   │   ├── changepoint.py       # ruptures / PELT
-│   │   └── classify.py          # creep state → modifier D
-│   └── fusion/
-│       ├── risk.py              # R = S × P × D × E
-│       ├── exposure.py          # runout buffers, segment joins
-│       └── calibration.py       # tier threshold fitting
+│   │   ├── model.py             # calibrated logistic regression, temporal split
+│   │   └── thresholds.py        # Guzzetti I–D fit; raises when unphysical
+│   ├── deformation/changepoint.py   # creep state → modifier D
+│   ├── fusion/risk.py           # runout reach, 90th-percentile hazard, exposure, tiers
+│   └── hindcast.py              # event replay; walk-forward lead times
 │
 ├── api/
-│   ├── main.py
-│   ├── routers/                 # risk, alerts, reports, admin, auth
-│   ├── schemas/                 # Pydantic models
-│   ├── db/                      # SQLAlchemy models, migrations
-│   ├── services/                # alert dispatch, SHAP formatting
-│   └── cache.py
+│   ├── main.py                  # FastAPI app, scoped CORS, /health
+│   ├── store.py                 # file-backed RiskStore over GeoParquet
+│   ├── routers/risk.py          # 6 risk endpoints
+│   └── schemas/risk.py
 │
 ├── alerting/
-│   ├── dispatcher.py            # tier transitions → channel fan-out
-│   ├── templates/               # per-language SMS & IVR scripts
-│   ├── gateways/                # Twilio / MSG91 adapters
-│   └── escalation.py
+│   ├── dispatcher.py            # escalation-only dispatch
+│   ├── templates/messages.py    # review-gated (tier, language) templates
+│   ├── gateways/                # base, console (dry run), msg91
+│   └── readiness.py             # `make alerts`
 │
-├── dashboard/                   # React + TypeScript + MapLibre
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/               # Map, Watchlist, Replay, Deformation
-│   │   ├── hooks/
-│   │   └── api/
-│   └── package.json
+├── dashboard/                   # React + Vite + MapLibre — officials' console
+│   └── src/
+│       ├── components/landing/  # Hero, Metrics, Method, Proof, Corridor
+│       ├── components/dashboard/# Console, CommandBar, Watchlist, MapPane,
+│       │                        # CorridorStrip, Inspector, TableView, Shortcuts
+│       ├── components/visuals/  # CorridorBlock, LayerStack (drawn figures)
+│       ├── lib/                 # dashboard state, bands, motion, theme mode
+│       ├── styles/tokens.css    # design tokens, light and dark
+│       └── data/                # segment facts, rainfall, hindcast series
 │
-├── citizen-app/                 # React Native
-│   ├── src/
-│   │   ├── screens/             # Alerts, SafeRoute, Report, Offline
-│   │   ├── services/            # geolocation, cache, push
-│   │   └── i18n/                # 6 regional languages
-│   └── package.json
-│
-├── notebooks/
-│   ├── 01_inventory_eda.ipynb
-│   ├── 02_terrain_features.ipynb
-│   ├── 03_susceptibility_training.ipynb
-│   ├── 04_rainfall_sequences.ipynb
-│   ├── 05_insar_timeseries.ipynb
-│   └── 06_hindcast_validation.ipynb
+├── citizen-app/                 # Expo / React Native — Landsafe NER
+│   └── src/
+│       ├── screens/             # Splash, Today, MapScreen, Route, Report, Alerts, Safety, More
+│       ├── components/          # TabBar, AlertBanner, Button, Card, Icons, Logo, …
+│       ├── illustrations/       # Hillside, Hazards, Range, Quiet
+│       └── lib/                 # api (cache-on-failure), explain, history, reports, theme, fonts
 │
 ├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── fixtures/
+│   ├── unit/                    # 14 modules, one per pipeline stage
+│   └── integration/test_api.py
 │
-├── infra/
-│   ├── k8s/
-│   ├── grafana/
-│   └── github-actions/
-│
-└── docs/
-    ├── architecture.md
-    ├── data-dictionary.md
-    ├── model-cards/
-    └── api.md
+└── data/                        # git-ignored pipeline outputs
+    ├── raw/        dem/, inventory/
+    ├── interim/    dem_utm.tif, roads, settlements, facilities, insar_chain
+    └── processed/  terrain/*.tif, susceptibility.tif, rainfall/*, segment_risk.parquet,
+                    tier_thresholds.parquet, hindcast_2016_07_21.parquet, lead_times.parquet
 ```
+
+Not present, though the design names them: `notebooks/`, `docs/`, `infra/` (Kubernetes, Grafana), `ingestion/flows/` (Prefect), `processing/optical/`, `api/db/` migrations, `alerting/escalation.py`.
 
 ---
 
-## 13. Database Schema
+## 13. Database Schema *(design — not implemented)*
+
+The API is file-backed (§10, `api/store.py`); none of these tables exist, and `docker compose up` brings up an empty PostGIS + TimescaleDB. The schema is kept because it is the shape a production deployment needs, and because `RiskStore` was written so that filling it in is one class.
 
 ### 13.1 Core Spatial Tables (PostGIS)
 
@@ -912,97 +945,59 @@ CREATE INDEX idx_reports_geom ON citizen_reports USING GIST (geom);
 
 ## 14. API Specification
 
-Base URL: `/api/v1` · Auth: JWT bearer tokens, role-based (`public`, `official`, `admin`)
+FastAPI, served by `make api` on `0.0.0.0:8000`, prefix `/api/v1`. Read-only. CORS is scoped to the dashboard and app origins (`CORS_ORIGINS`), methods `GET` only.
 
-### 14.1 Risk
+### 14.1 Built
 
-| Method | Endpoint | Description |
+| Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/risk/segments` | Risk for road segments; filters `?highway=NH-10&tier=orange,red&horizon=24` |
-| `GET` | `/risk/segments/{id}` | Full detail for one segment including component breakdown |
-| `GET` | `/risk/segments/{id}/explain` | SHAP attribution for the latest score |
-| `GET` | `/risk/habitations` | Risk per habitation, same filters |
-| `GET` | `/risk/point?lat=&lon=` | Nearest-slope risk for an arbitrary coordinate (citizen app) |
-| `GET` | `/risk/watchlist?limit=50` | Ranked top-risk segments — dashboard landing query |
-| `GET` | `/risk/history?target_id=&from=&to=` | Time series for historical replay |
+| `GET` | `/health` | Status, segments loaded, whether tiers are calibrated |
+| `GET` | `/risk/segments?limit=500` | Every scored segment, ranked by risk |
+| `GET` | `/risk/segments/{id}` | One segment with its components, runout reach and scoring timestamp |
+| `GET` | `/risk/watchlist?limit=50` | Top-N — the dashboard's landing query |
+| `GET` | `/risk/point?lat=&lon=` | Nearest segment to a coordinate, with the distance — what the app asks |
+| `GET` | `/risk/geojson` | All segments as a FeatureCollection with properties, for the map |
+| `GET` | `/risk/tiers` | The calibrated cut-points, so no client assumes them |
 
-### 14.2 Deformation
+There is one scored run. Per-day history, and therefore replay and "sort by change", need a store that keeps previous runs.
 
-| Method | Endpoint | Description |
+### 14.2 Designed
+
+| Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/deformation/slopes/{id}/timeseries` | LOS displacement series with detected change points |
-| `GET` | `/deformation/coverage` | InSAR coherence coverage map for the AOI |
+| `GET` | `/risk/segments/{id}/explain` | SHAP attribution over terrain features |
+| `GET` | `/risk/segments/{id}/history?from=&to=` | Score time series for replay |
+| `GET` | `/deformation/{polygon_id}/series` | Displacement time series with change points |
+| `POST` | `/alerts/subscribe` · `GET /alerts` · `POST /alerts/{id}/outcome` | Subscription, log, official feedback |
+| `POST` | `/reports` · `GET /reports?bbox=` | Citizen report intake and moderation — the app queues these locally until it exists |
+| `GET` | `/tiles/{layer}/{z}/{x}/{y}` · `/export/geojson?bbox=` | Raster tiles via TiTiler; OGC export |
 
-### 14.3 Alerts
+### 14.3 Sample Response — `GET /risk/segments/NH-10:58.015`
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/alerts` | Alert history with filters |
-| `POST` | `/alerts/subscribe` | Register phone / device for a location or corridor |
-| `DELETE` | `/alerts/subscribe/{id}` | Unsubscribe |
-| `POST` | `/alerts/{id}/outcome` | Official records what actually happened *(role: official)* |
-| `GET` | `/alerts/{id}/deliveries` | Per-channel delivery status *(role: official)* |
+Live from the pilot run:
 
-### 14.4 Citizen Reports
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/reports` | Submit geotagged observation with photo |
-| `GET` | `/reports` | List reports *(role: official)* |
-| `PATCH` | `/reports/{id}/moderate` | Accept / reject / mark duplicate *(role: official)* |
-
-### 14.5 Tiles & Export
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/tiles/susceptibility/{z}/{x}/{y}.png` | Susceptibility raster tiles via TiTiler |
-| `GET` | `/tiles/risk/{z}/{x}/{y}.mvt` | Vector risk tiles |
-| `GET` | `/export/geojson?bbox=` | GeoJSON export for state GIS |
-| `GET` | `/ogc/wms` | OGC WMS endpoint for NDMA / SDMA / Bhuvan integration |
-
-### 14.6 Sample Response
-
-```jsonc
-GET /api/v1/risk/segments/1842?horizon=24
-
+```json
 {
-  "segment": {
-    "id": 1842,
-    "highway_code": "NH-10",
-    "chainage_km": 27.0,
-    "district": "Kalimpong",
-    "state": "West Bengal"
-  },
-  "computed_at": "2026-06-18T09:00:00Z",
+  "id": "NH-10:58.015",
+  "highway_code": "NH-10",
+  "chainage_km": 58.015,
+  "risk": 0.0064187,
+  "tier": "orange",
+  "computed_at": "2026-09-05T14:44:51.663909",
   "horizon_h": 24,
-  "risk": 0.81,
-  "tier": "red",
+  "hazard": 0.0077024,
+  "length_m": 1000.0,
+  "runout_reach_m": 547.5,
   "components": {
-    "susceptibility": 0.88,
-    "trigger_probability": 0.71,
-    "deformation_modifier": 1.35,
-    "exposure": 0.97
-  },
-  "deformation": {
-    "creep_state": "accelerating",
-    "los_velocity_mm_yr": -42.3,
-    "last_changepoint": "2026-06-04",
-    "insar_coverage": "partial"
-  },
-  "explanation": [
-    { "feature": "rain_accum_72h_mm",  "value": 318.0, "shap": 0.24 },
-    { "feature": "creep_acceleration",  "value": 2.1,   "shap": 0.19 },
-    { "feature": "slope_angle_deg",     "value": 41.5,  "shap": 0.14 },
-    { "feature": "dist_to_road_cut_m",  "value": 18.0,  "shap": 0.11 },
-    { "feature": "soil_moisture_pct",   "value": 0.46,  "shap": 0.08 }
-  ],
-  "model_versions": {
-    "susceptibility": "xgb-v2.3-2026Q1",
-    "trigger": "lstm-v1.7",
-    "deformation": "pelt-rbf-v1.2"
+    "susceptibility": 0.7645,
+    "trigger_probability": 0.0101,
+    "deformation_modifier": 1.0,
+    "exposure": 0.8333
   }
 }
 ```
+
+`risk = susceptibility × trigger_probability × deformation_modifier × exposure`, exactly, and `tier` is `risk` against `GET /risk/tiers` (red ≥ 0.00686, orange ≥ 0.00535, yellow ≥ 0.00427 on this run). The components are always returned with the score: an official who cannot see why a segment is orange has no basis to act on it.
 
 ---
 
@@ -1016,8 +1011,8 @@ flowchart LR
         A1["Inventory + terrain<br/>+ NDVI"] --> A2["Negative sampling<br/>+ feature encoding"]
         A2 --> A3["Spatially blocked CV<br/>XGBoost training"]
         A3 --> A4["Susceptibility raster<br/>→ COG"]
-        B1["Rainfall archive<br/>+ SMAP"] --> B2["Sequence windows<br/>around events"]
-        B2 --> B3["LSTM training<br/>focal loss"]
+        B1["CHIRPS / IMERG<br/>archive"] --> B2["Antecedent windows<br/>around event dates"]
+        B2 --> B3["Calibrated logistic<br/>regression, temporal split"]
         B3 --> B4["Trigger model<br/>→ registry"]
     end
     subgraph ON["Online — inference (3-hourly)"]
@@ -1026,25 +1021,30 @@ flowchart LR
         B4 --> C2 --> C3
         C4["Latest InSAR<br/>creep state"] --> C3
         C5["Exposure layer"] --> C3
-        C3 --> C6["Risk scores<br/>+ SHAP"] --> C7["Tier transition<br/>detection"] --> C8["Alert dispatch"]
+        C3 --> C6["Risk scores<br/>+ components"] --> C7["Tier escalation<br/>detection"] --> C8["Alert dispatch"]
     end
 ```
 
-### 15.2 Training Cadence
+*In the pilot the online cycle is run by hand: the modules are called in sequence and write GeoParquet, which the API serves. The scheduler is designed.*
+
+### 15.2 Training Cadence *(designed)*
 
 | Model | Retrain cadence | Trigger for off-cycle retrain |
 |---|---|---|
 | Susceptibility (XGBoost) | Seasonal, post-monsoon | ≥ 50 new verified inventory events |
-| Trigger (LSTM) | Annual | Systematic drift in per-tier precision |
+| Trigger (calibrated regression) | Annual | Systematic drift in per-tier precision |
 | Change-point detector | No training; parameters re-tuned per corridor | New track added, or noise-floor shift |
 | Tier thresholds | Monthly during monsoon | False-alarm rate exceeding agreed budget |
 
 ### 15.3 Experiment Tracking & Reproducibility
 
-- **MLflow** records every run: parameters, metrics, spatial fold definitions, model artefacts.
-- **DVC** versions the datasets and feature stacks so a model version maps to an exact data snapshot.
-- Every risk score persists the `model_versions` object, so any historical alert can be reproduced exactly — which is essential when a decision is reviewed after an event.
-- All random seeds fixed and logged; fold assignments stored, not regenerated.
+Built:
+
+- Every scored segment carries `computed_at` and `horizon_h`; the run is one immutable GeoParquet.
+- The spatial block size is derived from a fitted variogram and logged, and fold assignments are computed from fixed seeds, so the blocked AUC is reproducible from the dataset alone.
+- The hindcast refuses to run against tier thresholds derived from the replay window — a circularity that would otherwise flatter every result.
+
+Designed: MLflow run tracking and DVC data versioning are in `pyproject.toml` and nothing calls them yet; the `model_versions` object on each score depends on the database that does not exist.
 
 ---
 
@@ -1198,7 +1198,9 @@ The classical Guzzetti baseline **cannot be fitted to this inventory**, and `fit
 
 ---
 
-## 17. Deployment Architecture
+## 17. Deployment Architecture *(design)*
+
+Nothing below is deployed. The pilot runs on one machine: `make api` serves GeoParquet, the dashboard and the app connect to it over the local network. The diagram is the target once there is a database to deploy.
 
 ```mermaid
 flowchart TB
@@ -1236,16 +1238,17 @@ flowchart TB
 
 ### 17.1 CI/CD
 
-GitHub Actions pipeline:
+Built — `.github/workflows/ci.yml`, on every push to `main` and every pull request, three jobs in parallel:
 
 ```
-lint (ruff) → type-check (mypy) → unit tests → integration tests (docker-compose)
-  → build images → push to registry → deploy to staging → smoke test → manual gate → production
+python       uv install → ruff check → mypy (advisory) → pytest -m "not slow"
+dashboard    npm ci → tsc --noEmit → vite build
+citizen-app  npm install → tsc --noEmit → vitest
 ```
 
-Model artefacts are versioned separately from application code: a model promotion is a registry change plus a config bump, never an application redeploy — so a bad model can be rolled back in seconds without touching the serving path.
+Tests that reach Earth Engine or LiCSAR need credentials, so CI runs the offline suite and marks the rest `slow`: skipped is better than a red build everyone learns to ignore. Image builds, staging and production deploys are designed.
 
-### 17.2 Monitoring & Alerting on the System Itself
+### 17.2 Monitoring & Alerting on the System Itself *(designed)*
 
 | Signal | Alert condition |
 |---|---|
@@ -1264,54 +1267,34 @@ A disaster warning system that fails silently is worse than no system, because t
 
 ### 18.1 Prerequisites
 
-- Python 3.11+
-- Node.js 20+
-- Docker & Docker Compose
-- A Google Earth Engine service account
-- NASA Earthdata credentials (for GPM IMERG and SMAP)
-- Copernicus Data Space credentials (for Sentinel-1/2)
-- ESA SNAP with `snappy`, or ISCE2 — required only to run the InSAR chain locally
+- Python 3.11, Node.js 20+, git, GDAL (`gdalinfo`) — `make check` verifies all of them
+- Docker only if you want the designed database stack; **nothing in the pilot needs it**
+- A Google Earth Engine project (non-commercial registration is free) to pull rainfall
+- No other credentials: the DEM comes from a public bucket, roads and exposure from OSM, interferograms from LiCSAR's open server
 
 ### 18.2 Bring-Up
 
 ```bash
-# 1. Clone and configure
 git clone <repo-url> major && cd major
-cp .env.example .env          # then fill in credentials
+cp .env.example .env               # GEE_PROJECT_ID is the only value the pilot reads
 
-# 2. Python environment
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+make check                         # toolchain
+make install                       # .venv + pip install -e ".[dev]"
+make test                          # 160 tests, offline
+make lint
 
-# 3. Infrastructure (Postgres+PostGIS+Timescale, Redis, MinIO, Prefect)
-docker compose up -d
-
-# 4. Database schema and reference data
-make migrate
-make seed-reference        # admin boundaries, road network, inventory
-
-# 5. Pull a demo slice of data for the pilot corridor
-make fetch-demo-data       # NH-10 Sevoke–Gangtok, one monsoon season
-
-# 6. Train (or download pre-trained) models
-make train-susceptibility
-make train-trigger
-# or:  make download-models
-
-# 7. Run the API
-uvicorn api.main:app --reload --port 8000
-
-# 8. Dashboard
-cd dashboard && npm install && npm run dev      # → http://localhost:5173
-
-# 9. Citizen app
-cd citizen-app && npm install && npx expo start
+make api                           # http://localhost:8000/api/v1/health — binds 0.0.0.0
+make dashboard                     # http://localhost:5173  (needs make api in another shell)
+make app                           # citizen app, web preview
+make alerts                        # what the alerting layer could and could not send
 ```
+
+`make api` serves `data/processed/segment_risk.parquet` and `tier_thresholds.parquet`. `data/` is git-ignored, so on a fresh clone the API reports the store as unavailable until the pipeline has been run — `ingestion/` → `processing/` → `models/` in module order, as documented in `IMPLEMENTATION.md` — or the two files are copied from a machine that has them. There is no single `make forecast` target yet.
 
 ### 18.2b Running the citizen app on a phone
 
 ```bash
-make api                       # binds 0.0.0.0 so the phone can reach it
+make api                           # binds 0.0.0.0 so the phone can reach it
 cd citizen-app && npx expo start   # scan the QR with Expo Go
 ```
 
@@ -1330,30 +1313,28 @@ Two things had to be true for this to work at all, and neither is obvious:
   for a read-only development server on a trusted wifi, and not how it should be
   deployed. Production belongs behind a reverse proxy with TLS and auth.
 
-### 18.3 Useful Make Targets
+### 18.3 Make Targets
 
 | Target | Action |
 |---|---|
-| `make migrate` | Apply Alembic migrations |
-| `make seed-reference` | Load boundaries, roads, inventory |
-| `make fetch-demo-data` | Download the pilot-corridor data slice |
-| `make train-susceptibility` | Train Layer 1 with spatial CV |
-| `make train-trigger` | Train Layer 2 |
-| `make run-insar CORRIDOR=nh10` | Execute the SBAS chain for a corridor |
-| `make hindcast EVENT=sikkim_2023` | Replay a historical event end-to-end |
-| `make forecast` | Run one full inference cycle |
-| `make test` | Full test suite |
-| `make lint` | ruff + mypy |
+| `make check` | Verify python3.11, node, docker, gdal, git |
+| `make install` | Create `.venv` and install the project with dev extras |
+| `make test` · `make lint` | pytest · ruff |
+| `make api` | Run the API on `0.0.0.0:8000` from the pipeline outputs |
+| `make dashboard` | Install and run the officials' console |
+| `make app` | Install and run the citizen app in the browser |
+| `make alerts` | Alerting readiness report |
+| `make up` · `down` · `logs` · `db-shell` · `verify` · `migrate` · `clean` | The designed Postgres / Redis / MinIO / TiTiler stack via Docker Compose — optional, and unused by the pilot |
 
 ---
 
 ## 19. Configuration
 
-`.env.example`:
+`.env.example`. The pilot reads `GEE_PROJECT_ID`, the AOI block, and `MSG91_AUTH_KEY` if set; the rest configures the designed stack.
 
 ```bash
-# ─── Database ───────────────────────────────────────────────
-DATABASE_URL=postgresql://landslide:landslide@localhost:5432/landslide
+# ─── Database (designed stack) ──────────────────────────────
+DATABASE_URL=postgresql+psycopg://landslide:landslide@localhost:5432/landslide
 REDIS_URL=redis://localhost:6379/0
 
 # ─── Object storage ─────────────────────────────────────────
@@ -1363,6 +1344,7 @@ S3_ACCESS_KEY=
 S3_SECRET_KEY=
 
 # ─── Earth observation credentials ──────────────────────────
+GEE_PROJECT_ID=                   # the one credential the pilot needs
 GEE_SERVICE_ACCOUNT=
 GEE_PRIVATE_KEY_PATH=./secrets/gee-key.json
 COPERNICUS_USER=
@@ -1380,10 +1362,13 @@ IVR_CALLER_ID=
 
 # ─── Risk engine ────────────────────────────────────────────
 AOI_BBOX=88.30,26.85,88.85,27.45  # pilot corridor
-FORECAST_HORIZONS=24,48,72
-TIER_THRESHOLDS=0.25,0.50,0.75
-INFERENCE_CRON=0 */3 * * *
+AOI_NAME=NH10_Sevoke_Gangtok
+UTM_CRS=EPSG:32645
+FORECAST_HORIZONS=24,48,72        # 24 built
+TIER_THRESHOLDS=0.25,0.50,0.75    # design defaults; the pilot calibrates its own (§3)
+INFERENCE_CRON=0 */3 * * *        # designed
 INSAR_COHERENCE_THRESHOLD=0.30
+SPATIAL_BLOCK_SIZE_M=5000         # overridden by the fitted variogram
 
 # ─── Application ────────────────────────────────────────────
 JWT_SECRET=
@@ -1397,10 +1382,10 @@ LOG_LEVEL=INFO
 
 | Challenge | Mitigation |
 |---|---|
-| **Sparse and incomplete landslide inventory in NER; severe class imbalance** | Careful spatial negative sampling from stable slopes, SMOTE within training folds only, transfer learning from the denser Himachal and Uttarakhand inventories, and continuous inventory growth from moderated citizen reports |
+| **Sparse and incomplete landslide inventory in NER; severe class imbalance** | Guarded negative sampling (minimum slope, event buffer, elevation matching) and class weighting — built. Transfer learning from the Himachal and Uttarakhand inventories and inventory growth from moderated citizen reports — designed. The measured constraint is location error, not count: see §16A |
 | **Persistent monsoon cloud cover blocks optical imagery** | The deformation layer uses radar (Sentinel-1), which penetrates cloud. Optical data is used only for slow-changing vegetation features, where a gap of days is harmless |
 | **Dense vegetation causes InSAR decorrelation on NER slopes** | SBAS multi-temporal InSAR with coherence thresholding; deformation confidence restricted to coherent pixels; coverage reported honestly rather than interpolated over gaps |
-| **False alarms erode official trust** | Four graded tiers rather than binary alerts, SHAP explanation attached to every alert, and a feedback loop where officials mark outcomes to recalibrate thresholds per corridor |
+| **False alarms erode official trust** | Four graded tiers rather than binary alerts, the factor components attached to every score, escalation-only dispatch — built. SHAP over terrain features and the outcome-feedback recalibration loop — designed |
 | **Poor connectivity during the exact events being warned about** | SMS and IVR as the primary channel, app functions offline with the last-cached risk layer, alerts pre-pushed before storm onset |
 | **IMERG rainfall is coarse (~10 km) relative to slope scale** | Bias-correct and downscale against IMD AWS station observations; propagate the resulting uncertainty into the trigger probability rather than hiding it |
 | **DEM is dated relative to active hill cutting and road widening** | Detect new cut faces from Sentinel-2 change detection and flag affected slope units for susceptibility re-evaluation |
@@ -1410,17 +1395,18 @@ LOG_LEVEL=INFO
 
 ## 21. Testing
 
-| Level | Scope | Tools |
+`make test` runs **160 tests** in `tests/unit/` and `tests/integration/`, all offline; CI runs the same suite plus `tsc` and a build on both front-ends.
+
+| Level | What is tested | Where |
 |---|---|---|
-| **Unit** | DEM derivative correctness against analytic surfaces, TWI/SPI formulas, tier assignment, runout buffer geometry, template rendering per language | pytest |
-| **Integration** | Ingestion → processing → inference → risk write, against a seeded test database | pytest + docker-compose, `testcontainers` |
-| **Model** | Spatial CV harness asserts no fold overlap; regression test that AUC does not drop below a floor; SHAP values sum to the model output | pytest + MLflow |
-| **API** | Contract tests on every endpoint, auth and RBAC enforcement, pagination, error shapes | pytest + httpx |
-| **Frontend** | Component tests, map layer rendering snapshots | Vitest + Testing Library |
-| **End-to-end** | Full hindcast run asserts an Orange/Red alert fires before a known event date | pytest, marked `slow` |
-| **Load** | Dashboard watchlist and tile endpoints under concurrent district-control-room load | Locust |
+| **Unit** | DEM derivatives against analytic surfaces; TWI / SPI; inventory loading, accuracy filtering and fuzzy dedup; Earth Engine date normalisation; sub-daily storm extraction; spatial CV block sizing and fold disjointness; negative-sampling guards; XGBoost training and raster inference; trigger calibration and temporal split; the I–D threshold raising on the wrong sign; change-point creep states; fusion, runout reach and tier calibration; hindcast replay and lead times; alert escalation rules and template review gating | `tests/unit/test_*.py` |
+| **Integration** | Every API endpoint against a small fixture store | `tests/integration/test_api.py` |
+| **Citizen app** | API host resolution and cache-on-failure | `citizen-app/src/lib/api.test.ts`, Vitest (8 tests) |
+| **Dashboard** | Types and a production build | `tsc --noEmit`, `vite build` in CI — no component tests yet |
 
 A dedicated test guards the property that matters most: **the spatial CV splitter must never place two spatially adjacent samples in different folds.** If that test fails, every reported metric in the project is invalid.
+
+Designed, not present: `testcontainers` integration against a seeded database, Locust load tests, MLflow-backed AUC floors.
 
 ---
 
