@@ -38,7 +38,9 @@ migrate:          ## Apply database migrations
 	./.venv/bin/alembic upgrade head
 
 api:              ## Run the API (no database needed; serves the pipeline outputs)
-	./.venv/bin/uvicorn api.main:app --reload --port 8000
+	# Binds 0.0.0.0, not the default 127.0.0.1: a phone running the citizen app
+	# cannot reach a loopback-only server even on the same wifi.
+	./.venv/bin/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 
 dashboard:        ## Run the officials' dashboard (needs `make api` in another shell)
 	cd dashboard && npm install && npm run dev

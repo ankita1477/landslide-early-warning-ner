@@ -39,6 +39,9 @@ ALLOWED_ORIGINS = [
         "CORS_ORIGINS",
         "http://localhost:5173,http://localhost:4173,http://localhost:8081,"
         "http://localhost:8082",
+        # A device build sends no Origin header at all, so native traffic is
+        # unaffected by this list. Add a LAN origin here only if you serve the
+        # app's web build from another machine.
     ).split(",")
     if origin.strip()
 ]

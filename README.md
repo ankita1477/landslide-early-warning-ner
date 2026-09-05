@@ -1308,6 +1308,28 @@ cd dashboard && npm install && npm run dev      # → http://localhost:5173
 cd citizen-app && npm install && npx expo start
 ```
 
+### 18.2b Running the citizen app on a phone
+
+```bash
+make api                       # binds 0.0.0.0 so the phone can reach it
+cd citizen-app && npx expo start   # scan the QR with Expo Go
+```
+
+The phone and the laptop must be on the same network. Check from the phone's
+browser first — `http://<laptop-ip>:8000/api/v1/health` should return JSON. If it
+times out, the network is isolating clients, which many campus networks do; a
+phone hotspot works instead.
+
+Two things had to be true for this to work at all, and neither is obvious:
+
+- **The app cannot use `localhost`.** On a handset that resolves to the handset.
+  The API host is derived from the address Expo already used to deliver the
+  bundle, so no configuration is needed; `EXPO_PUBLIC_API_URL` overrides it.
+- **The API cannot bind loopback.** `--host 0.0.0.0` is what makes it reachable
+  from another device. That does expose it to everyone on the network — acceptable
+  for a read-only development server on a trusted wifi, and not how it should be
+  deployed. Production belongs behind a reverse proxy with TLS and auth.
+
 ### 18.3 Useful Make Targets
 
 | Target | Action |
