@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { api, type SegmentDetail } from "../../api/client";
+import { api, type SegmentDetail, type Tier } from "../../api/client";
 import { TIER_COLOR } from "../../theme";
 import { LAYER_SERIES } from "../../lib/bands";
 import { EASE_OUT_EXPO } from "../../lib/motion";
@@ -10,17 +10,58 @@ import rainfall from "../../data/rainfall.json";
 type Facts = Record<string, Record<string, number | string | null>>;
 const FACTS = facts as Facts;
 
-function EmptyState() {
+/** The empty state carries the corridor summary rather than sitting blank —
+ *  420px of nothing is the largest wasted area on the screen, and this is what
+ *  an operator wants before they have picked anything. */
+function EmptyState({ summary }: { summary: Summary | null }) {
   return (
-    <div className="inspector empty">
-      <svg viewBox="0 0 220 90" className="empty-art" aria-hidden="true">
-        <path d="M 10 78 C 60 66, 48 40, 96 32 S 168 18, 210 8" fill="none"
-              stroke="var(--text-3)" strokeOpacity={0.3} strokeWidth={2} strokeLinecap="round" />
-      </svg>
-      <p className="empty-title">No segment selected</p>
+    <div className="inspector">
+      <p className="empty-title">Corridor overview</p>
       <p className="empty-help">
-        Choose a kilometre on the map, the watchlist, or the corridor strip.
+        Pick a kilometre on the map, the list, or the strip to see what drives it.
       </p>
+
+      {summary && (
+        <>
+          <section className="panel">
+            <h3 className="micro">Highest risk now</h3>
+            <div className="peak-km">km {summary.worst.chainage_km.toFixed(1)}</div>
+            <div className="peak-meta mono">
+              {summary.worst.tier} · {summary.worst.risk.toFixed(4)}
+            </div>
+          </section>
+
+          <section className="panel">
+            <h3 className="micro">Across 116 kilometres</h3>
+            <ul className="summary-bands">
+              {summary.counts.map((c) => (
+                <li key={c.tier}>
+                  <span className="swatch" style={{ background: TIER_COLOR[c.tier] }}
+                        aria-hidden="true" />
+                  <span className="legend-label">{c.tier}</span>
+                  <span className="legend-value mono">{c.n}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="panel">
+            <h3 className="micro">Alert thresholds</h3>
+            <dl className="facts one-col">
+              {summary.thresholds.map((t) => (
+                <div key={t.tier}>
+                  <dt>{t.tier} at or above</dt>
+                  <dd className="mono">{t.threshold.toFixed(4)}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="panel-note">
+              Calibrated for this corridor from its own risk distribution, not
+              fixed constants.
+            </p>
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -137,9 +178,16 @@ const FEATURE_ROWS = [
   ["dist_to_road_m", "Distance to road", " m"], ["elevation_m", "Elevation", " m"],
 ] as const;
 
-export function Inspector({ segmentId, thresholds, onZoom }: {
+export interface Summary {
+  worst: { chainage_km: number; risk: number; tier: Tier };
+  counts: { tier: Tier; n: number }[];
+  thresholds: { tier: string; threshold: number }[];
+}
+
+export function Inspector({ segmentId, thresholds, summary, onZoom }: {
   segmentId: string | null;
   thresholds: { tier: string; threshold: number }[];
+  summary: Summary | null;
   onZoom: () => void;
 }) {
   const [detail, setDetail] = useState<SegmentDetail | null>(null);
@@ -156,7 +204,7 @@ export function Inspector({ segmentId, thresholds, onZoom }: {
     return () => { cancelled = true; };
   }, [segmentId]);
 
-  if (!segmentId) return <EmptyState />;
+  if (!segmentId) return <EmptyState summary={summary} />;
   if (error) {
     return (
       <div className="inspector">

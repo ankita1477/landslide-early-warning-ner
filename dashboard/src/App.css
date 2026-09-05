@@ -476,9 +476,9 @@
 .strip-svg { min-height: 0; }
 
 @media (max-width: 768px) {
-  /* Four children — command bar, scrubber, tabs, grid — need four rows.
-     With only three defined the tabs took the 1fr row and grew to fill it. */
-  .console { grid-template-rows: auto auto auto 1fr; }
+  /* Three children now the scrubber is gone: command bar, tabs, grid. The row
+     count has to match the child count, or a row takes the 1fr and stretches. */
+  .console { grid-template-rows: auto auto 1fr; }
 
   /* Chips get their own full-width scrolling row rather than competing with
      the status cluster for the same line. */
@@ -514,4 +514,75 @@
    correct whether or not the transition ever runs. */
 .meter-fill, .contrib-seg {
   transition: width .55s var(--ease-out-expo), flex-grow .5s var(--ease-out-expo);
+}
+
+/* ══ Calmer console ══════════════════════════════════════════
+   The screen was carrying five competing uppercase labels, a dead row for a
+   feature that does not exist, and map chrome large enough to compete with the
+   map. Everything below reduces noise rather than adding decoration. */
+
+.console { grid-template-rows: 60px 1fr; }
+.command-bar { padding: 0 18px; gap: 20px; }
+.command-bar h1 { font-size: 15.5px; }
+.cb-sub { font-size: 10px; letter-spacing: .01em; }
+.scored { font-size: 10px; opacity: .75; }
+
+/* Section headings speak once, quietly. */
+.console .micro { font-size: 10px; letter-spacing: .1em; color: var(--text-3); }
+
+/* Watchlist: shorter rows fit more of the corridor without feeling cramped. */
+.wl-head { padding: 13px 14px 9px; }
+.wl-count { font-size: 11px; margin: 4px 0 8px; }
+.wl-rows { padding: 4px 8px; }
+.wl-row { height: 40px; gap: 10px; }
+.wl-rank { font-size: 10px; color: var(--text-3); opacity: .6; }
+.wl-km { font-size: 12.5px; }
+.wl-band { font-size: 10.5px; }
+
+/* Map chrome recedes: a single legend row, controls clear of the pane edge. */
+.map-legend { position: absolute; bottom: 12px; left: 12px; display: flex;
+  align-items: center; gap: 14px; padding: 7px 12px; border-radius: var(--radius-pill);
+  background: rgba(5,7,13,.9); border: 1px solid var(--glass-border); }
+.map-legend .legend-row { gap: 6px; font-size: 10.5px; }
+.map-legend .legend-note { font-size: 10px; color: var(--text-3); padding-left: 4px;
+  border-left: 1px solid var(--glass-border); }
+
+.layer-switch { top: 12px; left: 12px; padding: 3px; border-radius: var(--radius-pill); }
+.layer-switch button { font-size: 10.5px; padding: 5px 11px; border-radius: 999px; }
+
+.map-controls { bottom: 56px; right: 12px; border-radius: var(--radius-control); }
+.map-controls button { width: 32px; height: 32px; font-size: 13px; }
+
+/* Strip: the heading and the chart share one row instead of stacking. */
+.strip { padding: 4px 12px 2px; }
+.strip-head .micro { opacity: .7; }
+
+/* Corridor overview — what the inspector shows before anything is picked. */
+.empty-title { font-family: var(--font-display); font-size: 20px; font-weight: 600;
+  letter-spacing: -0.02em; margin: 4px 0 6px; }
+.empty-help { font-size: 12.5px; color: var(--text-3); margin: 0 0 4px; max-width: 34ch;
+  line-height: 1.5; }
+.peak-km { font-family: var(--font-display); font-size: 34px; font-weight: 600;
+  letter-spacing: -0.03em; line-height: 1.1; }
+.peak-meta { font-size: 11.5px; color: var(--text-2); text-transform: capitalize;
+  margin-top: 4px; }
+.summary-bands { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 7px; }
+.summary-bands li { display: flex; align-items: center; gap: 9px; font-size: 12.5px;
+  text-transform: capitalize; }
+.facts.one-col { grid-template-columns: 1fr; }
+
+/* Controls sit low-right, clear of the attribution strip but not adrift in the
+   middle of the map. */
+.map-controls { bottom: 34px; }
+/* The strip needs its full height for the axis labels to clear the edge. */
+.console-grid { grid-template-rows: 1fr 128px; }
+.strip { padding: 5px 12px 4px; }
+
+/* Must come last: the plain .console rules above are appended after the earlier
+   responsive block, so at equal specificity they were winning on mobile and the
+   tab row was taking the 1fr track and stretching to fill it. */
+@media (max-width: 768px) {
+  .console { grid-template-rows: auto auto 1fr; }
+  .pane-tabs { align-items: center; }
+  .pane-tabs button { height: 36px; }
 }

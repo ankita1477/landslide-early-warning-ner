@@ -59,8 +59,9 @@ export function CommandBar({
       </div>
 
       <div className="cb-right">
-        <span className="scored mono" title="Last scoring run">
-          last scored {scoredLabel(computedAt)}
+        <span className="scored mono"
+              title="The API serves a single scored run; per-day history is not stored yet">
+          {scoredLabel(computedAt)}
         </span>
         <span className={stale ? "status stale" : "status live"}>
           <span className="status-dot" aria-hidden="true" />

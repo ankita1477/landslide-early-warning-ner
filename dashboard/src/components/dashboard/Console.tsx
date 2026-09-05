@@ -4,7 +4,6 @@ import type { Health, SegmentSummary, TierThreshold } from "../../api/client";
 import { useDashboardState } from "../../lib/useDashboardState";
 import { TIERS } from "../../lib/bands";
 import { CommandBar } from "./CommandBar";
-import { DateScrubber } from "./DateScrubber";
 import { Watchlist } from "./Watchlist";
 import { MapPane } from "./MapPane";
 import { CorridorStrip } from "./CorridorStrip";
@@ -29,6 +28,12 @@ export function Console({
   const [zoomNonce, setZoomNonce] = useState(0);
 
   const visibleIds = useMemo(() => new Set(visible.map((s) => s.id)), [visible]);
+  const summary = useMemo(() => {
+    if (!allSegments.length) return null;
+    const worst = [...allSegments].sort((a, b) => b.risk - a.risk)[0];
+    return { worst, counts, thresholds: [...thresholds].sort((a, b) => b.threshold - a.threshold) };
+  }, [allSegments, counts, thresholds]);
+
   const sortedThresholds = useMemo(
     () => [...thresholds].sort((a, b) => a.threshold - b.threshold),
     [thresholds],
@@ -78,7 +83,6 @@ export function Console({
         onToggleContrast={() => dispatch({ type: "toggleContrast" })}
         onShortcuts={() => dispatch({ type: "toggleShortcuts" })}
       />
-      <DateScrubber />
 
       <nav className="pane-tabs" aria-label="View">
         {(["map", "list", "detail"] as const).map((pane) => (
@@ -120,7 +124,7 @@ export function Console({
 
         <aside className="region region-inspector">
           <Inspector segmentId={state.selectedId} thresholds={sortedThresholds}
-                     onZoom={() => setZoomNonce((n) => n + 1)} />
+                     summary={summary} onZoom={() => setZoomNonce((n) => n + 1)} />
         </aside>
       </div>
 

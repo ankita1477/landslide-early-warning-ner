@@ -244,19 +244,20 @@ export function MapPane({
         )}
       </div>
 
-      <div className="map-legend glass">
-        <span className="micro">Risk band</span>
+      {/* One compact row rather than a stacked panel: the legend explains the
+          width encoding, it does not need to dominate the map. */}
+      <div className="map-legend">
         {TIERS.map((tier) => (
           <span className="legend-row" key={tier}>
-            <svg width="34" height="10" aria-hidden="true">
-              <line x1="1" y1="5" x2="33" y2="5" stroke={TIER_COLOR[tier]}
+            <svg width="22" height="9" aria-hidden="true">
+              <line x1="1" y1="4.5" x2="21" y2="4.5" stroke={TIER_COLOR[tier]}
                     strokeWidth={BAND_WIDTH[tier]}
-                    strokeDasharray={tier === "orange" ? "6 4" : undefined} />
+                    strokeDasharray={tier === "orange" ? "5 3" : undefined} />
             </svg>
             <span>{tier}</span>
           </span>
         ))}
-        <span className="legend-note">width steps with severity</span>
+        <span className="legend-note">thicker = more severe</span>
       </div>
 
       <div className="map-controls glass">
