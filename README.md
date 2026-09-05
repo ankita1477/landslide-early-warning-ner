@@ -1438,11 +1438,11 @@ A dedicated test guards the property that matters most: **the spatial CV splitte
 | **2 — Susceptibility model** | Feature stack, negative sampling, XGBoost with spatially blocked CV, susceptibility raster | ☑ **AUC 0.866** blocked; SHAP explainer not wired into the API |
 | **3 — Rainfall trigger** | Antecedent-rainfall features, calibrated probabilities, temporal validation | ☑ **31.7× lift**; regularised logistic regression rather than an LSTM — 51 positives would be memorised. I–D threshold cannot be fitted to this inventory |
 | **4 — Deformation layer** | LiCSAR chain over the corridor, displacement time series, change-point detection, coverage flags | ☑ built, but **not observable here** — coherence 0.095 median against a 0.30 threshold |
-| **5 — Fusion & exposure** | Runout buffers, segment scoring, tier calibration | ☑ 116 segments; habitation joins not built |
+| **5 — Fusion & exposure** | Runout buffers, segment scoring, tier calibration, exposure from settlements and facilities | ☑ 116 segments; exposure spans 0.15–1.00 from 123 OSM settlements and 68 facilities |
 | **6 — API & dashboard** | FastAPI endpoints, React dashboard with map, watchlist, corridor strip and factor breakdown | ☑ 7 endpoints; TiTiler tiles and historical replay not built |
 | **7 — Delivery** | SMS gateway, escalation dispatcher, delivery tracking | ☑ *partial* — dispatcher and templates built and tested; **English only** until translations are reviewed, and **dry-run only** without provider credentials. Citizen app and IVR not built |
 | **8 — Validation** | Hindcast, metric report, lead-time distribution | ☑ **8-day warning** on a real event; 42-event walk-forward study — see §16A |
-| **9 — Hardening & scale-out** | Kubernetes deployment, monitoring, CI/CD, OGC export, extension beyond the pilot corridor | ☐ not started |
+| **9 — Hardening & scale-out** | Kubernetes deployment, monitoring, CI/CD, OGC export, extension beyond the pilot corridor | ☑ *partial* — GitHub Actions runs tests, lint, types and the dashboard build. Kubernetes, monitoring and OGC export not built |
 
 ### Pilot Scope
 

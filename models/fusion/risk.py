@@ -159,8 +159,64 @@ def segment_hazard(
     return gpd.GeoDataFrame(out, geometry="geometry", crs=segments.crs)
 
 
-def normalise_exposure(segments: gpd.GeoDataFrame, column: str = "criticality") -> pd.Series:
-    """Scale exposure to 0-1 across the corridor.
+def compute_exposure(
+    segments: gpd.GeoDataFrame,
+    settlements: gpd.GeoDataFrame,
+    facilities: gpd.GeoDataFrame | None = None,
+    decay_m: float = 1500.0,
+    max_distance_m: float = 8000.0,
+    floor: float = 0.15,
+) -> pd.Series:
+    """Exposure per segment, from people and facilities within reach.
+
+    Influence decays with distance rather than stopping at a boundary. A hard
+    cutoff at the runout reach put three quarters of the corridor on the floor,
+    which is the wrong model for a road: a village two kilometres along is still
+    cut off when the kilometre in front of it is blocked. What is being measured
+    is who depends on this stretch, not who stands directly beneath it.
+
+    Two further choices. Population is compressed with a log before scaling,
+    because Gangtok holds fifty times the people of a hamlet and a linear scale
+    would drive every other segment to nearly zero — the ranking among ordinary
+    segments is what an operator acts on. And exposure never reaches zero: NH-10
+    is the sole road into Sikkim, so a blocked kilometre with nobody beside it
+    still cuts the state off. `floor` is that residual criticality.
+    """
+    metric = segments.to_crs(segments.estimate_utm_crs())
+    people_layers = [settlements] if facilities is None else [settlements, facilities]
+    exposed = pd.concat(
+        [layer.to_crs(metric.crs)[["people", "geometry"]] for layer in people_layers],
+        ignore_index=True,
+    )
+
+    totals = []
+    for _, segment in metric.iterrows():
+        distance = exposed.geometry.distance(segment.geometry)
+        near = distance <= max_distance_m
+        # Inverse-square decay: full weight adjacent, a quarter at the decay
+        # length, negligible past the cutoff.
+        weight = 1.0 / (1.0 + (distance[near] / decay_m) ** 2)
+        totals.append(float((exposed.loc[near, "people"] * weight).sum()))
+
+    people = pd.Series(totals, index=segments.index)
+    compressed = np.log1p(people)
+    span = compressed.max() - compressed.min()
+    scaled = (
+        pd.Series(0.5, index=segments.index)
+        if span <= 0
+        else (compressed - compressed.min()) / span
+    )
+    exposure = floor + (1.0 - floor) * scaled
+
+    log.info(
+        "exposure: %.0f-%.0f people-equivalent within reach, scaled to %.2f-%.2f",
+        people.min(), people.max(), exposure.min(), exposure.max(),
+    )
+    return exposure
+
+
+def normalise_exposure(segments: gpd.GeoDataFrame, column: str = "exposure") -> pd.Series:
+    """Scale a precomputed exposure column to 0-1 across the corridor.
 
     Un-normalised exposure is the classic reason every segment comes out red.
     """

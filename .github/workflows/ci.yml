@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    name: Python — tests, lint, types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      # richdem has no arm64 wheel and does not compile against current clang,
+      # so the project uses whitebox instead; nothing here needs system GDAL
+      # because rasterio ships its own.
+      - name: Install
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Types
+        run: mypy ingestion processing models api alerting --ignore-missing-imports
+        continue-on-error: true
+
+      # Tests that reach Earth Engine or LiCSAR need credentials, so CI runs the
+      # offline suite only. Marking them skipped is better than a red build that
+      # everyone learns to ignore.
+      - name: Tests
+        run: pytest -q -m "not slow"
+
+  frontend:
+    name: Dashboard — build and types
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build

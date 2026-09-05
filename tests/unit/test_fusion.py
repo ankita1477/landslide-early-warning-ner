@@ -73,6 +73,7 @@ def _segments(hazard_values, criticality=None):
 def test_exposure_is_normalised_across_the_corridor():
     """Un-normalised exposure is the classic reason every segment comes out red."""
     seg = _segments([0.5] * 4, criticality=[10.0, 20.0, 30.0, 40.0])
+    seg = seg.rename(columns={"criticality": "exposure"})
     exposure = normalise_exposure(seg)
     assert exposure.min() == 0.0 and exposure.max() == 1.0
 
@@ -80,6 +81,7 @@ def test_exposure_is_normalised_across_the_corridor():
 def test_constant_exposure_does_not_collapse_to_zero():
     """A corridor where every segment is equally critical must not become risk-free."""
     seg = _segments([0.9] * 3, criticality=[5.0, 5.0, 5.0])
+    seg = seg.rename(columns={"criticality": "exposure"})
     assert (normalise_exposure(seg) == 1.0).all()
 
 
@@ -145,3 +147,98 @@ def test_empty_history_falls_back_to_the_default_tiers():
     from models.fusion.risk import TIERS, calibrate_tiers
 
     assert calibrate_tiers(pd.Series([], dtype=float)) == list(TIERS)
+
+
+# ── Exposure ────────────────────────────────────────────────────────────
+
+def _places(coords_people):
+    from shapely.geometry import Point
+    return gpd.GeoDataFrame(
+        {"people": [p for _, p in coords_people]},
+        geometry=[Point(*c) for c, _ in coords_people], crs="EPSG:32645",
+    )
+
+
+def _line_segments(n=3, spacing=4000):
+    return gpd.GeoDataFrame(
+        {"chainage_km": [float(i) for i in range(n)]},
+        geometry=[
+            LineString([(i * spacing, 0), (i * spacing + 1000, 0)]) for i in range(n)
+        ],
+        crs="EPSG:32645",
+    )
+
+
+def test_exposure_is_higher_where_more_people_are():
+    from models.fusion.risk import compute_exposure
+
+    segments = _line_segments(3)
+    # A town beside segment 0, nothing near segment 2.
+    people = _places([((500, 200), 20_000.0)])
+    exposure = compute_exposure(segments, people)
+    assert exposure.iloc[0] > exposure.iloc[2]
+
+
+def test_exposure_never_reaches_zero():
+    """NH-10 is the sole road into Sikkim: a blocked kilometre with nobody beside
+    it still cuts the state off."""
+    from models.fusion.risk import compute_exposure
+
+    exposure = compute_exposure(_line_segments(2), _places([((500_000, 0), 10.0)]))
+    assert (exposure >= 0.15).all()
+    assert (exposure <= 1.0).all()
+
+
+def test_influence_decays_rather_than_stopping_at_a_boundary():
+    """A hard cutoff put three quarters of the corridor on the floor. A village
+    two kilometres along is still cut off when the road in front of it goes."""
+    from models.fusion.risk import compute_exposure
+
+    segments = _line_segments(4, spacing=2000)
+    exposure = compute_exposure(segments, _places([((500, 0), 20_000.0)]))
+    values = list(exposure)
+    assert values == sorted(values, reverse=True), "influence must fall off smoothly"
+    assert values[1] > 0.15, "the neighbouring segment is not unaffected"
+
+
+def test_population_is_log_compressed():
+    """A city fifty times a hamlet must not drive every other segment to zero."""
+    from models.fusion.risk import compute_exposure
+
+    segments = _line_segments(3, spacing=3000)
+    exposure = compute_exposure(
+        segments, _places([((500, 0), 100_000.0), ((3_500, 0), 2_000.0)])
+    )
+    # The hamlet holds 2% of the city's population. Linearly scaled it would sit
+    # near the floor; log-compressed it stays a distinguishable middle value.
+    assert 0.3 < exposure.iloc[1] < exposure.iloc[0]
+
+
+def test_a_hospital_raises_a_segment_above_its_neighbour():
+    """A cut-off hospital matters more than a cut-off empty slope."""
+    from models.fusion.risk import compute_exposure
+
+    segments = _line_segments(3, spacing=4000)
+    villages = _places([((500, 0), 2_000.0), ((4_500, 0), 2_000.0)])
+    hospital = _places([((4_520, 0), 5_000.0)])
+
+    without = compute_exposure(segments, villages)
+    with_hospital = compute_exposure(segments, villages, hospital)
+
+    # Exposure is min-max scaled, so the effect shows as a change in ranking
+    # rather than an absolute rise: the segment that gains the hospital stays at
+    # the top and pushes its equally-populated neighbour down.
+    assert without.iloc[0] == pytest.approx(without.iloc[1])
+    assert with_hospital.iloc[1] > with_hospital.iloc[0]
+
+
+def test_exposure_changes_the_ranking():
+    """The point of the term: a weaker slope above many people can outrank a
+    stronger slope above nobody."""
+    from models.fusion.risk import compute_exposure, score_segments
+
+    segments = _line_segments(2, spacing=6000)
+    segments["hazard_raw"] = [0.95, 0.70]
+    exposure = compute_exposure(segments, _places([((6_500, 0), 50_000.0)]))
+    scored = score_segments(segments, trigger_prob=0.01, exposure=exposure)
+    assert scored["risk"].iloc[1] > scored["risk"].iloc[0]
