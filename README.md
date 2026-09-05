@@ -7,6 +7,24 @@
 
 ---
 
+## Status
+
+Built and validated on the **NH-10 Sevoke–Gangtok pilot corridor** — 109.6 km, 116 one-kilometre segments scored daily from satellite data alone.
+
+| | |
+|---|---|
+| **Susceptibility** | **AUC 0.866** spatially blocked, 59 blocks · trained on 175 mapped landslide polygons |
+| **Hindcast** | **Red raised 8 days before** the landslide of 21 July 2016, 11 m from NH-10 |
+| **Trigger** | **31.7× lift** over base rate, calibrated to the true daily event rate |
+| **Across 42 events** | Red fired before **17%**, median lead **9 days**, walk-forward validated |
+| **Deformation** | **Not observable here** — coherence 0.095 median against a 0.30 threshold |
+
+The binding constraint is not the model. It is inventory location error: detection is **28% for events within 1 km of the corridor and 8% beyond it**, because the global catalogues locate most landslides to 5–25 km.
+
+Full figures, including what did not work and why, in [§16A Results](#16a-results). Delivery over SMS and IVR (§9.3) is designed but not built.
+
+---
+
 ## Table of Contents
 
 1. [Motivation](#1-motivation)
@@ -25,6 +43,7 @@
 14. [API Specification](#14-api-specification)
 15. [Machine Learning Pipeline](#15-machine-learning-pipeline)
 16. [Validation Strategy & Metrics](#16-validation-strategy--metrics)
+16A. [**Results**](#16a-results)
 17. [Deployment Architecture](#17-deployment-architecture)
 18. [Local Setup](#18-local-setup)
 19. [Configuration](#19-configuration)
@@ -1085,6 +1104,100 @@ Claiming near-perfect accuracy on a sparse inventory signals overfitting to any 
 
 ---
 
+## 16A. Results
+
+Every figure below is produced by the code in this repository and reproducible from the committed pipeline outputs. Where a layer did not work, that is stated rather than omitted.
+
+### Layer 1 — Susceptibility
+
+| Metric | Value |
+|---|---|
+| **AUC-ROC, spatially blocked** | **0.866** (5 folds over 59 blocks, fold range 0.805–0.912) |
+| AUC-PR, spatially blocked | 0.752 |
+| AUC-ROC, random split | 0.889 — *inflated by leakage, recorded only for comparison* |
+| Training set | 175 mapped landslide polygons, 350 constructed negatives |
+| Features | 9 terrain layers at 30 m |
+
+Block size was **not guessed**. Variograms fitted to the corridor's own predictors give autocorrelation ranges of 1.4 km (plan curvature), 1.9 km (TWI) and 3.6 km (slope), producing **8 km blocks**. Raw elevation fits at 14 km, but that is the regional trend of a mountain front rather than autocorrelation, and including it would leave too few blocks to form folds.
+
+The leakage gap is only **+0.023 AUC**, because the negative-sampling constraints — minimum slope, 500 m buffer from any scar, elevation matching — remove most of it before cross-validation runs.
+
+**Operationally:** the most susceptible **5% of the corridor contains 40% of all mapped scar area** — a lift of 8.1×. At 10% it holds 56%.
+
+### Layer 2 — Rainfall trigger
+
+| Metric | Value |
+|---|---|
+| AUC-ROC, temporal holdout (2015+) | 0.601 |
+| AUC-PR | 0.139 against a base rate of 0.0044 — **31.7× lift** |
+| Brier score, calibrated | 0.0043 (0.2440 before calibration) |
+
+Rainfall alone is weaker than it first appears. Seven-day antecedent rainfall scores **AUC 0.803 across the whole year but 0.619 within the monsoon**, at each event's own location. Most of the apparent skill was the calendar: events cluster in June–September and so does rain. The monsoon-controlled figure is the one to quote — it is the temporal analogue of spatial leakage.
+
+Calibration mattered more than the model. Balanced class weights are what make 51 positives learnable, but they fit a balanced prior, so raw outputs read 0.64 where events occur 0.8% of the time. Harmless for ranking and fatal downstream, since risk is compared against absolute tier thresholds.
+
+### Layer 3 — Deformation
+
+**Not observable on this corridor.** Coherence over the AOI is **0.147 mean, 0.095 median, 0.239 at the 90th percentile** — all below the 0.30 threshold, verified against the raw product rather than inferred. Steep vegetated Himalayan slopes decorrelate at C-band.
+
+Only **0.26%** of AOI pixels stay coherent through all 32 interferograms, though a 500 m buffer around the road recovers enough built-up ground that **37 of 116 segments** get a usable series. All 37 classify as stable, so the deformation modifier is 1.0 corridor-wide and no risk score changes.
+
+Raw chain integration gave every segment a uniform 12–26 mm/yr, which was atmosphere rather than ground. Referencing each epoch to its spatial median moves velocities to **−1.9 mm/yr mean, range −19 to +8**.
+
+Additionally, COMET-LiCS publishes only **March 2025 onward** publicly; everything earlier returns 403. There is therefore no InSAR for the hindcast event or for any event in the lead-time study, so this layer cannot improve any historical result.
+
+### Tier calibration
+
+Fixed 0.25/0.50/0.75 thresholds assume risk is a normalised index. Once the trigger model is calibrated to the true daily event rate, P<sub>t</sub> peaks at 0.024 and risk never exceeds 0.035 — the system would be permanently green and would never raise an alert. Thresholds are therefore derived as frequencies from the corridor's own distribution over 212,280 segment-days:
+
+| Tier | Threshold |
+|---|---|
+| 🔴 Red | ≥ 0.01061 |
+| 🟠 Orange | ≥ 0.00825 |
+| 🟡 Yellow | ≥ 0.00657 |
+
+### Hindcast — the primary evidence
+
+Replaying the landslide of **21 July 2016**, 11 m from NH-10, using only rainfall that had already fallen and a trigger model fitted on data before 2015:
+
+> **First Red on the failure segment: 13 July 2016 — 8 days before the landslide.**
+
+Tier thresholds for this replay come from the full 2007–2018 record, not from the replay window, so the alert is not self-fulfilling.
+
+### Lead-time distribution — 42 events, walk-forward
+
+Each event scored by a model fitted only on years strictly before its own:
+
+| Tier | Fired for | Median lead | 10th percentile | Max |
+|---|---|---|---|---|
+| Yellow | 15/42 (36%) | 16 d | 5 d | 20 d |
+| Orange | 10/42 (24%) | 13 d | 3 d | 20 d |
+| **Red** | **7/42 (17%)** | **9 d** | 3 d | 20 d |
+
+**Detection, not lead time, is the weak link.** The warnings that do fire are timely — the 10th percentile is 3 days, so there are no useless twenty-minute alerts.
+
+Detection is **28% for events within 1 km of the corridor against 8% further away**. That points at inventory location error rather than the models: for an event geocoded to a settlement 10 km off, the nearest segment is the wrong segment carrying the wrong susceptibility. Detection does not improve with more training data across years, so sample size is not the binding constraint either.
+
+### The binding constraint: labels
+
+| Source | In corridor | Located to ≤1 km |
+|---|---|---|
+| NASA GLC | 63 | 14 |
+| NASA HMA | 69 | 16 |
+| Combined, deduplicated | — | **16** |
+| **Sikkim inventory (Zenodo, used)** | **175 polygons** | **all mapped** |
+
+The global catalogues are news-derived and geocode most events to a settlement; at 25 km accuracy that is 833 pixels of error on a 30 m grid. GSI Bhukosh, the official Indian inventory, was unreachable. A published multi-temporal Sikkim inventory supplied the 175 mapped polygons the model is actually trained on.
+
+Widening the area does not help: reaching 131 usable points from the global catalogues would require an 1,662 km study area spanning geology unrelated to this corridor.
+
+### Intensity–duration threshold — not fitted
+
+The classical Guzzetti baseline **cannot be fitted to this inventory**, and `fit_threshold` raises rather than returning a curve that is backwards. Daily CHIRPS gives only 6 distinct durations and a log-duration/log-intensity correlation of 0.009. Half-hourly IMERG gives 41 distinct durations and a correlation of 0.407 — but with the wrong sign, fitting β = −0.406 where physics requires β > 0. That holds at every storm-gap setting from 0.5 h to 12 h, so it is not a definition artefact. The likely cause is reporting bias: a news-derived inventory records large events during long monsoon spells, not short intense bursts.
+
+
+---
+
 ## 17. Deployment Architecture
 
 ```mermaid
@@ -1293,6 +1406,13 @@ A dedicated test guards the property that matters most: **the spatial CV splitte
 
 ### Technical Limitations
 
+*Measured on this corridor, not anticipated — see §16A for the figures.*
+
+- **Detection is 17% at the Red tier** across 42 replayed events. The warnings that fire are timely (median 9 days), but most events produce no alert at all.
+- **Inventory location error is the largest single cause.** Detection is 28% for events within 1 km of the corridor and 8% beyond it. The global catalogues locate most events to 5–25 km, which is 167–833 pixels at 30 m.
+- **Layer 3 contributes nothing here.** Coherence is 0.095 median against a 0.30 threshold, and no public InSAR exists before March 2025, so it cannot improve any historical result either.
+- **The intensity–duration baseline could not be fitted.** The inventory's duration and intensity correlate with the wrong sign, most likely reporting bias.
+- **Rainfall carries modest skill** — AUC 0.60 within the monsoon. The three-layer design exists precisely because no single layer is sufficient.
 - Deformation coverage is **not universal.** Dense vegetation leaves genuine blind spots; the system reports them rather than filling them in.
 - InSAR revisit is **6–12 days.** A slope that goes from stable to failure inside a single revisit interval will not be caught by Layer 3, only by Layers 1 and 2.
 - InSAR measures **line-of-sight** displacement only. Movement perpendicular to the satellite look direction is under-measured; combining ascending and descending tracks partially mitigates this.
@@ -1314,15 +1434,15 @@ A dedicated test guards the property that matters most: **the spatial CV splitte
 
 | Phase | Deliverables | Status |
 |---|---|---|
-| **1 — Data foundation** | Ingestion flows, PostGIS/Timescale schema, DEM derivatives, inventory cleaning for the pilot corridor | ☐ |
-| **2 — Susceptibility model** | Feature stack, negative sampling, XGBoost with spatially blocked CV, susceptibility COG, SHAP explainer | ☐ |
-| **3 — Rainfall trigger** | Sequence construction, LSTM training, I–D threshold baseline, 24/48/72 h probabilities | ☐ |
-| **4 — Deformation layer** | SBAS-InSAR chain over the corridor, displacement time series, change-point detection, coverage flags | ☐ |
-| **5 — Fusion & exposure** | Runout buffers, segment/habitation joins, risk scoring, tier calibration | ☐ |
-| **6 — API & dashboard** | FastAPI endpoints, TiTiler tiles, React dashboard with map, watchlist, replay and explanations | ☐ |
-| **7 — Delivery** | Citizen app, SMS/IVR gateway, six-language templates, offline mode, delivery tracking | ☐ |
-| **8 — Validation** | Hindcast of documented events, full metric report, reliability diagrams, lead-time distribution | ☐ |
-| **9 — Hardening & scale-out** | Kubernetes deployment, monitoring, CI/CD, OGC export, extension beyond the pilot corridor | ☐ |
+| **1 — Data foundation** | Ingestion flows, DEM derivatives, inventory cleaning for the pilot corridor | ☑ *schema written but unused — the API reads pipeline outputs directly, so the system runs without a database* |
+| **2 — Susceptibility model** | Feature stack, negative sampling, XGBoost with spatially blocked CV, susceptibility raster | ☑ **AUC 0.866** blocked; SHAP explainer not wired into the API |
+| **3 — Rainfall trigger** | Antecedent-rainfall features, calibrated probabilities, temporal validation | ☑ **31.7× lift**; regularised logistic regression rather than an LSTM — 51 positives would be memorised. I–D threshold cannot be fitted to this inventory |
+| **4 — Deformation layer** | LiCSAR chain over the corridor, displacement time series, change-point detection, coverage flags | ☑ built, but **not observable here** — coherence 0.095 median against a 0.30 threshold |
+| **5 — Fusion & exposure** | Runout buffers, segment scoring, tier calibration | ☑ 116 segments; habitation joins not built |
+| **6 — API & dashboard** | FastAPI endpoints, React dashboard with map, watchlist, corridor strip and factor breakdown | ☑ 7 endpoints; TiTiler tiles and historical replay not built |
+| **7 — Delivery** | Citizen app, SMS/IVR gateway, six-language templates, offline mode, delivery tracking | ☐ **not started** — the warning currently stops at the dashboard |
+| **8 — Validation** | Hindcast, metric report, lead-time distribution | ☑ **8-day warning** on a real event; 42-event walk-forward study — see §16A |
+| **9 — Hardening & scale-out** | Kubernetes deployment, monitoring, CI/CD, OGC export, extension beyond the pilot corridor | ☐ not started |
 
 ### Pilot Scope
 
