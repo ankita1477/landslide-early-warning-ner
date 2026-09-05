@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api, type SegmentSummary } from "../lib/api";
 import { Card } from "../components/Card";
 import { C, RADIUS, SPACE, TIER_COLOR, TIER_RANK, TIER_WORD, TYPE, type Tier } from "../lib/theme";
 import { ACTION } from "../lib/explain";
+import { D, EASE, useReducedMotion } from "../lib/motion";
 import PLACES from "../data/places.json";
 
 interface Place { name: string; km: number }
@@ -23,9 +24,11 @@ export function Route() {
   const [to, setTo] = useState<Place>(DEFAULT_TO);
   const [segments, setSegments] = useState<SegmentSummary[]>([]);
   const [busy, setBusy] = useState(true);
+  const [stage, setStage] = useState(0);
 
   const load = useCallback(async () => {
     setBusy(true);
+    setStage(0);
     try {
       const result = await api.corridor();
       setSegments(result.data.segments);
@@ -36,6 +39,18 @@ export function Route() {
     }
   }, []);
   useEffect(() => { void load(); }, [load]);
+
+  // The checks are named as they run. They are not invented delays: the timer
+  // only walks the labels forward while the request is genuinely outstanding,
+  // and the screen moves on the moment the readings land.
+  useEffect(() => {
+    if (!busy) return;
+    const timer = setInterval(
+      () => setStage((n) => Math.min(n + 1, CHECKS.length - 1)),
+      520,
+    );
+    return () => clearInterval(timer);
+  }, [busy]);
 
   const onRoute = useMemo(() => {
     const low = Math.min(from.km, to.km);
@@ -54,6 +69,8 @@ export function Route() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.h1}>Check my route</Text>
+
+      {busy && <Checking stage={stage} />}
 
       <Card>
         <Text style={styles.pickLabel}>Starting from</Text>
@@ -101,6 +118,59 @@ export function Route() {
         </Card>
       )}
     </ScrollView>
+  );
+}
+
+const CHECKS = [
+  "Checking rainfall",
+  "Checking slope risk",
+  "Checking road conditions",
+] as const;
+
+/** What the app is doing, in the order it does it.
+ *
+ *  A person waiting on a hill road with one bar of signal should be able to see
+ *  that something is happening and what it is, rather than a spinner that could
+ *  mean anything.
+ */
+function Checking({ stage }: { stage: number }) {
+  return (
+    <Card>
+      {CHECKS.map((check, i) => (
+        <CheckRow key={check} label={check} done={i < stage} active={i === stage} />
+      ))}
+    </Card>
+  );
+}
+
+function CheckRow({ label, done, active }: { label: string; done: boolean; active: boolean }) {
+  const fade = useRef(new Animated.Value(done || active ? 1 : 0.3)).current;
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    Animated.timing(fade, {
+      toValue: done || active ? 1 : 0.3,
+      duration: reduced ? 0 : D.card,
+      easing: EASE.out,
+      useNativeDriver: true,
+    }).start();
+  }, [done, active, fade, reduced]);
+
+  return (
+    <Animated.View style={[styles.check, { opacity: fade }]}>
+      <View style={styles.checkMark}>
+        {done ? (
+          <Text style={styles.tick}>✓</Text>
+        ) : active ? (
+          <ActivityIndicator size="small" color={C.accent} />
+        ) : (
+          <View style={styles.pending} />
+        )}
+      </View>
+      <Text style={[styles.checkText, done && styles.checkDone]}>
+        {label}{done ? "" : "…"}
+      </Text>
+    </Animated.View>
   );
 }
 
@@ -156,4 +226,12 @@ const styles = StyleSheet.create({
   rowKm: { ...TYPE.bodyStrong, color: C.text1, flex: 1 },
   rowWord: { ...TYPE.micro, fontSize: 11 },
   empty: { ...TYPE.body, color: C.text2 },
+  check: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 9 },
+  checkMark: { width: 22, alignItems: "center" },
+  tick: { fontSize: 16, color: C.green, fontWeight: "700" },
+  pending: {
+    width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.text3,
+  },
+  checkText: { ...TYPE.body, fontSize: 15.5, color: C.text2 },
+  checkDone: { color: C.text1 },
 });

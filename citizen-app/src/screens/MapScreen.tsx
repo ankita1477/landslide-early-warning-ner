@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { api, type GeoFeature } from "../lib/api";
 import { Card } from "../components/Card";
+import { Skeleton } from "../components/Skeleton";
+import { D, EASE, useReducedMotion } from "../lib/motion";
 import { headline, reasons } from "../lib/explain";
 import { C, RADIUS, SPACE, TIER_COLOR, TIER_WORD, TYPE, type Tier } from "../lib/theme";
 import { ACTION } from "../lib/explain";
@@ -61,85 +63,152 @@ export function MapScreen() {
 
   const tier = (selected?.properties.tier ?? "green") as Tier;
 
+  const spot = useMemo(
+    () => projected?.find((p) => p.feature.properties.id === selected?.properties.id) ?? null,
+    [projected, selected],
+  );
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.h1}>The road</Text>
-      <Text style={styles.sub}>Tap any part of the highway to see what is happening there.</Text>
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={[styles.content, selected && styles.contentWithSheet]}>
+        <Text style={styles.h1}>The road</Text>
+        <Text style={styles.sub}>Tap any part of the highway to see what is happening there.</Text>
 
-      <Card style={styles.mapCard}>
-        {busy && <ActivityIndicator color={C.text2} size="large" />}
-        {projected && (
-          <Svg width={W} height={H}>
-            {projected.map(({ feature, d }) => (
-              <Path
-                key={feature.properties.id}
-                d={d}
-                stroke={TIER_COLOR[feature.properties.tier as Tier]}
-                strokeWidth={selected?.properties.id === feature.properties.id ? 11 : 6}
-                strokeLinecap="round"
-                fill="none"
-                onPress={() => setSelected(feature)}
-              />
+        <Card style={styles.mapCard}>
+          {busy && <Skeleton height={H} width={W} style={{ borderRadius: RADIUS.control }} />}
+          {projected && (
+            <Svg width={W} height={H}>
+              {projected.map(({ feature, d }) => (
+                <Path
+                  key={feature.properties.id}
+                  d={d}
+                  stroke={TIER_COLOR[feature.properties.tier as Tier]}
+                  strokeWidth={selected?.properties.id === feature.properties.id ? 11 : 6}
+                  strokeLinecap="round"
+                  fill="none"
+                  onPress={() => setSelected(feature)}
+                />
+              ))}
+              {spot && <Marker x={spot.mid[0]} y={spot.mid[1]} color={TIER_COLOR[tier]} />}
+            </Svg>
+          )}
+          <View style={styles.legend}>
+            {(["green", "yellow", "orange", "red"] as Tier[]).map((t) => (
+              <View key={t} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: TIER_COLOR[t] }]} />
+                <Text style={styles.legendText}>{TIER_WORD[t]}</Text>
+              </View>
             ))}
-            {selected && (
-              <Circle
-                cx={projected.find((p) => p.feature.properties.id === selected.properties.id)?.mid[0]}
-                cy={projected.find((p) => p.feature.properties.id === selected.properties.id)?.mid[1]}
-                r={9} fill="none" stroke={C.text1} strokeWidth={2.5}
-              />
-            )}
-          </Svg>
-        )}
-        <View style={styles.legend}>
-          {(["green", "yellow", "orange", "red"] as Tier[]).map((t) => (
-            <View key={t} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: TIER_COLOR[t] }]} />
-              <Text style={styles.legendText}>{TIER_WORD[t]}</Text>
-            </View>
-          ))}
-        </View>
-      </Card>
+          </View>
+        </Card>
 
-      {selected ? (
-        <Card tint={`${TIER_COLOR[tier]}1F`}>
+        {!selected && !busy && (
+          <Card>
+            <Text style={styles.hint}>Tap the road above to check a section.</Text>
+          </Card>
+        )}
+      </ScrollView>
+
+      {selected && (
+        <Sheet key={selected.properties.id} onClose={() => setSelected(null)}>
           <Text style={[styles.pickWord, { color: TIER_COLOR[tier] }]}>{TIER_WORD[tier]}</Text>
           <Text style={styles.pickKm}>
             NH-10, km {selected.properties.chainage_km.toFixed(0)}
           </Text>
           <Text style={styles.pickWhy}>
-            {headline(
-              {
-                susceptibility: selected.properties.susceptibility,
-                trigger_probability: selected.properties.trigger_prob,
-                deformation_modifier: selected.properties.deform_mod,
-                exposure: selected.properties.exposure,
-              },
-              tier,
-            )}
+            {headline(factorsOf(selected), tier)}
           </Text>
           <View style={styles.reasons}>
-            {reasons(
-              {
-                susceptibility: selected.properties.susceptibility,
-                trigger_probability: selected.properties.trigger_prob,
-                deformation_modifier: selected.properties.deform_mod,
-                exposure: selected.properties.exposure,
-              },
-              tier,
-            ).map((r) => (
+            {reasons(factorsOf(selected), tier).map((r) => (
               <Text key={r.text} style={styles.reason}>{r.icon}  {r.text}</Text>
             ))}
           </View>
           <Text style={styles.pickAction}>{ACTION[tier].action}</Text>
-        </Card>
-      ) : (
-        !busy && (
-          <Card>
-            <Text style={styles.hint}>Tap the road above to check a section.</Text>
-          </Card>
-        )
+        </Sheet>
       )}
-    </ScrollView>
+    </View>
+  );
+}
+
+/** The four factors, named the way the explainer expects them. */
+function factorsOf(feature: GeoFeature) {
+  return {
+    susceptibility: feature.properties.susceptibility,
+    trigger_probability: feature.properties.trigger_prob,
+    deformation_modifier: feature.properties.deform_mod,
+    exposure: feature.properties.exposure,
+  };
+}
+
+/** A ring that breathes around the chosen kilometre.
+ *
+ *  On a road drawn at this scale a thicker stroke alone is easy to lose. The
+ *  ring says "this one" without moving the map or hiding what is under it.
+ */
+function Marker({ x, y, color }: { x: number; y: number; color: string }) {
+  const beat = useRef(new Animated.Value(0)).current;
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    if (reduced) return;
+    const loop = Animated.loop(
+      Animated.timing(beat, {
+        toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: false,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [beat, reduced]);
+
+  return (
+    <>
+      <AnimatedCircle
+        cx={x} cy={y} fill="none" stroke={color} strokeWidth={2}
+        r={beat.interpolate({ inputRange: [0, 1], outputRange: [9, 26] })}
+        opacity={beat.interpolate({ inputRange: [0, 1], outputRange: [0.75, 0] })}
+      />
+      <Circle cx={x} cy={y} r={9} fill="none" stroke={C.text1} strokeWidth={2.5} />
+    </>
+  );
+}
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+/** The detail card, held at the bottom of the screen where a thumb is.
+ *
+ *  It slides rather than fades: if the animation never runs — a slow device, a
+ *  dropped frame — a card at full opacity in the wrong position is still
+ *  readable, whereas one stuck at zero opacity is simply gone.
+ */
+function Sheet({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  const rise = useRef(new Animated.Value(0)).current;
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    Animated.timing(rise, {
+      toValue: 1, duration: reduced ? 0 : D.page, easing: EASE.out, useNativeDriver: true,
+    }).start();
+  }, [rise, reduced]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.sheet,
+        { transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] },
+      ]}
+    >
+      <View style={styles.grip} />
+      <Pressable
+        onPress={onClose}
+        style={styles.close}
+        hitSlop={14}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      >
+        <Text style={styles.closeText}>✕</Text>
+      </Pressable>
+      {children}
+    </Animated.View>
   );
 }
 
@@ -163,4 +232,19 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: C.border,
   },
   hint: { ...TYPE.body, color: C.text2, textAlign: "center" },
+  contentWithSheet: { paddingBottom: 340 },
+  sheet: {
+    position: "absolute", left: 0, right: 0, bottom: 0,
+    backgroundColor: "#131A2C", borderTopLeftRadius: RADIUS.card,
+    borderTopRightRadius: RADIUS.card, borderTopWidth: 1, borderColor: C.border,
+    padding: SPACE.lg, paddingTop: SPACE.md,
+    shadowColor: "#000", shadowOpacity: 0.5, shadowRadius: 26,
+    shadowOffset: { width: 0, height: -8 }, elevation: 16,
+  },
+  grip: {
+    alignSelf: "center", width: 42, height: 4, borderRadius: 2,
+    backgroundColor: C.border, marginBottom: SPACE.md,
+  },
+  close: { position: "absolute", right: SPACE.md, top: SPACE.md, padding: 4 },
+  closeText: { fontSize: 16, color: C.text3 },
 });

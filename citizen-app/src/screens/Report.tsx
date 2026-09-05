@@ -5,6 +5,7 @@ import * as ImagePicker from "expo-image-picker";
 import { CATEGORIES, queued, submit, type Category, type Report as Saved } from "../lib/reports";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
+import { SuccessTick } from "../components/SuccessTick";
 import { C, RADIUS, SPACE, TYPE } from "../lib/theme";
 
 /** Reporting is not decoration. Precisely mapped landslides are the scarcest
@@ -47,9 +48,37 @@ export function Report() {
     await refresh();
   };
 
+  // The confirmation takes the whole screen rather than sitting under the
+  // button. Appended to the form it lands below the fold, so the one person who
+  // needs to see it — the one who just pressed send — never does.
+  if (saved) {
+    return (
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+        <Card tint="rgba(34,197,94,0.12)">
+          {/* "Submitted" would be a lie — nothing has left the phone yet. The
+              thanks is still owed, so it is given for what actually happened. */}
+          <SuccessTick
+            title="Report saved"
+            body="Thank you. Your report can help keep other travellers safe."
+          />
+        </Card>
+
+        <Card tint="rgba(249,115,22,0.10)">
+          <Text style={styles.noticeTitle}>Reports are not being collected yet</Text>
+          <Text style={styles.body}>
+            The service cannot receive them at the moment, so your reports are
+            kept safely on this phone instead of being lost.
+            {pending.length > 0 ? ` ${pending.length} waiting.` : ""}
+          </Text>
+        </Card>
+
+        <Button label="Report something else" onPress={() => setSaved(false)} kind="secondary" />
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.h1}>Report a problem</Text>
       <Text style={styles.sub}>
         What you see from the road helps warn the people behind you.
       </Text>
@@ -97,15 +126,6 @@ export function Report() {
 
       <Button label="Send report" onPress={save} />
 
-      {saved && (
-        <Card tint="rgba(34,197,94,0.12)">
-          <Text style={styles.savedTitle}>Saved on your phone</Text>
-          <Text style={styles.body}>
-            It will be sent as soon as reporting opens.
-          </Text>
-        </Card>
-      )}
-
       <Card tint="rgba(249,115,22,0.10)">
         <Text style={styles.noticeTitle}>Reports are not being collected yet</Text>
         <Text style={styles.body}>
@@ -144,8 +164,7 @@ export function Report() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   content: { padding: SPACE.md, gap: SPACE.md, paddingBottom: SPACE.xl },
-  h1: { ...TYPE.hero, fontSize: 28, color: C.text1 },
-  sub: { ...TYPE.body, color: C.text2, marginTop: -6 },
+  sub: { ...TYPE.body, color: C.text2 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.sm },
   tile: {
     width: "48%", flexGrow: 1, backgroundColor: C.surface, borderRadius: RADIUS.card,
@@ -169,7 +188,6 @@ const styles = StyleSheet.create({
     borderColor: C.border, color: C.text1, padding: SPACE.md, minHeight: 90,
     fontSize: 16, textAlignVertical: "top",
   },
-  savedTitle: { ...TYPE.bodyStrong, color: C.green, marginBottom: 4 },
   noticeTitle: { ...TYPE.bodyStrong, color: C.orange, marginBottom: 4 },
   body: { ...TYPE.body, fontSize: 14.5, color: C.text2 },
   list: { gap: SPACE.sm },

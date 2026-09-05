@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Location from "expo-location";
 import { api, ageLabel, type Cached, type PointRisk, type SegmentDetail } from "../lib/api";
 import { RiskHero } from "../components/RiskHero";
 import { WhyCard } from "../components/WhyCard";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { RiskSkeleton } from "../components/Skeleton";
 import { record } from "../lib/history";
 import { headline } from "../lib/explain";
 import { C, SPACE, TYPE, type Tier } from "../lib/theme";
 
 const SEVOKE = { lat: 26.9, lon: 88.47 };
 
-export function Home({ onRoute, onMap }: { onRoute: () => void; onMap: () => void }) {
+export function Home({ onRoute, onMap, onReport, onEscalation }: {
+  onRoute: () => void;
+  onMap: () => void;
+  onReport: () => void;
+  onEscalation: (w: { tier: Tier; km: number; reason: string }) => void;
+}) {
   const [point, setPoint] = useState<Cached<PointRisk> | null>(null);
   const [detail, setDetail] = useState<SegmentDetail | null>(null);
   const [located, setLocated] = useState(false);
@@ -39,17 +45,19 @@ export function Home({ onRoute, onMap }: { onRoute: () => void; onMap: () => voi
       setPoint(result);
       const full = await api.segment(result.data.segment.id);
       setDetail(full.data);
-      await record(
-        result.data.segment.tier as Tier,
-        result.data.segment.chainage_km,
-        headline(full.data.components, result.data.segment.tier as Tier),
-      );
+      const band = result.data.segment.tier as Tier;
+      const km = result.data.segment.chainage_km;
+      const reason = headline(full.data.components, band);
+      const { escalated } = await record(band, km, reason);
+      // The banner is for the moment conditions worsen. Anything else is
+      // already on the card below it and does not need to interrupt anyone.
+      if (escalated) onEscalation({ tier: band, km, reason });
     } catch {
       setFailed(true);
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [onEscalation]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -61,7 +69,7 @@ export function Home({ onRoute, onMap }: { onRoute: () => void; onMap: () => voi
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={busy} onRefresh={load} tintColor={C.text2} />}
     >
-      {busy && !point && <ActivityIndicator color={C.text2} style={styles.loader} size="large" />}
+      {busy && !point && <RiskSkeleton />}
 
       {point && (
         <>
@@ -90,6 +98,7 @@ export function Home({ onRoute, onMap }: { onRoute: () => void; onMap: () => voi
           {detail && <WhyCard factors={detail.components} tier={tier} />}
 
           <Button label="See the map" onPress={onMap} kind="secondary" />
+          <Button label="Report a problem" onPress={onReport} kind="secondary" />
         </>
       )}
 
@@ -115,7 +124,6 @@ export function Home({ onRoute, onMap }: { onRoute: () => void; onMap: () => voi
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   content: { padding: SPACE.md, gap: SPACE.md, paddingBottom: SPACE.xl },
-  loader: { marginTop: 60 },
   staleTitle: { ...TYPE.bodyStrong, color: C.text1, marginBottom: 4 },
   staleBody: { ...TYPE.body, fontSize: 14.5, color: C.text2 },
   note: { marginTop: SPACE.sm },

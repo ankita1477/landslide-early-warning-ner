@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 import { C, RADIUS, SPACE, TIER_COLOR, TIER_WASH, TIER_WORD, TYPE, type Tier } from "../lib/theme";
 import { ACTION, SITUATION } from "../lib/explain";
+import { PULSE, useReducedMotion } from "../lib/motion";
 
 /** The whole point of the app in one card: what the risk is, and what to do.
  *  The band is spoken as a word — a colour alone is unreadable to a colour-blind
@@ -13,19 +14,27 @@ export function RiskHero({ tier, place, subtitle, updated, onRoute }: {
   const pulse = useRef(new Animated.Value(1)).current;
   const action = ACTION[tier];
   const situation = SITUATION[tier];
+  const reduced = useReducedMotion();
 
+  // The band sets how insistent the beat is: green barely moves, red is quick
+  // but never flashes. A strobing emergency screen is harder to read, and
+  // frightening rather than informative.
   useEffect(() => {
-    if (!action.urgent) return;
-    // A slow breath, not a flash. Urgency should register without alarming.
+    const beat = PULSE[tier];
+    if (!beat || reduced) {
+      pulse.setValue(1);
+      return;
+    }
+    const half = beat.duration / 2;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 0.55, duration: 1300, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: beat.to, duration: half, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: half, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
     );
     loop.start();
     return () => loop.stop();
-  }, [action.urgent, pulse]);
+  }, [tier, pulse, reduced]);
 
   return (
     <View
@@ -34,9 +43,23 @@ export function RiskHero({ tier, place, subtitle, updated, onRoute }: {
       accessibilityLabel={`${TIER_WORD[tier]}. ${situation.headline}. ${situation.sub}. ${action.action}`}
     >
       <View style={styles.row}>
-        <Animated.View
-          style={[styles.dot, { backgroundColor: TIER_COLOR[tier], opacity: pulse }]}
-        />
+        <View style={styles.dotWrap}>
+          <Animated.View
+            style={[
+              styles.halo,
+              {
+                backgroundColor: TIER_COLOR[tier],
+                opacity: pulse.interpolate({ inputRange: [0.3, 1], outputRange: [0.42, 0] }),
+                transform: [
+                  { scale: pulse.interpolate({ inputRange: [0.3, 1], outputRange: [2.1, 1] }) },
+                ],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[styles.dot, { backgroundColor: TIER_COLOR[tier], opacity: pulse }]}
+          />
+        </View>
         <Text style={[styles.word, { color: TIER_COLOR[tier] }]}>{TIER_WORD[tier]}</Text>
       </View>
 
@@ -62,6 +85,8 @@ export function RiskHero({ tier, place, subtitle, updated, onRoute }: {
 const styles = StyleSheet.create({
   card: { borderRadius: RADIUS.card, borderWidth: 2, padding: SPACE.lg, gap: SPACE.sm },
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dotWrap: { width: 14, height: 14, alignItems: "center", justifyContent: "center" },
+  halo: { position: "absolute", width: 14, height: 14, borderRadius: 7 },
   dot: { width: 14, height: 14, borderRadius: 7 },
   word: { ...TYPE.micro, fontSize: 13 },
   label: { ...TYPE.hero, color: C.text1, marginTop: 2 },

@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Card } from "../components/Card";
-import { history, type WarningEntry } from "../lib/history";
-import { useEffect } from "react";
-import { C, RADIUS, SPACE, TIER_COLOR, TIER_WORD, TYPE, type Tier } from "../lib/theme";
+import { C, RADIUS, SPACE, TYPE } from "../lib/theme";
 
 /** Advice a person can follow without training, in the order they need it. */
 const GUIDE = [
@@ -56,12 +54,9 @@ const CONTACTS = [
 
 export function Safety() {
   const [open, setOpen] = useState<string | null>("before");
-  const [past, setPast] = useState<WarningEntry[]>([]);
-  useEffect(() => { void history().then(setPast); }, []);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.h1}>Safety</Text>
 
       {GUIDE.map((section) => {
         const expanded = open === section.key;
@@ -111,30 +106,6 @@ export function Safety() {
         </Pressable>
       ))}
 
-      <Text style={styles.h2}>Warnings you have seen</Text>
-      {past.length === 0 ? (
-        <Card>
-          <Text style={styles.empty}>
-            Nothing recorded yet. Each time the risk on your stretch changes, it
-            is saved here so you can look back at it.
-          </Text>
-        </Card>
-      ) : (
-        past.slice(0, 12).map((entry) => (
-          <Card key={entry.at} style={styles.historyRow}>
-            <View style={[styles.hBar, { backgroundColor: TIER_COLOR[entry.tier as Tier] }]} />
-            <View style={styles.contactText}>
-              <Text style={styles.contactLabel}>
-                {TIER_WORD[entry.tier as Tier]} · km {entry.km.toFixed(0)}
-              </Text>
-              <Text style={styles.contactNote}>{entry.reason}</Text>
-            </View>
-            <Text style={styles.when}>
-              {new Date(entry.at).toLocaleDateString()}
-            </Text>
-          </Card>
-        ))
-      )}
     </ScrollView>
   );
 }
@@ -142,7 +113,6 @@ export function Safety() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   content: { padding: SPACE.md, gap: SPACE.sm, paddingBottom: SPACE.xl },
-  h1: { ...TYPE.hero, fontSize: 28, color: C.text1, marginBottom: SPACE.xs },
   h2: { ...TYPE.title, color: C.text1, marginTop: SPACE.lg, marginBottom: SPACE.xs },
   head: { flexDirection: "row", alignItems: "center", gap: 12 },
   icon: { fontSize: 24 },
@@ -161,8 +131,4 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill, paddingHorizontal: 14, paddingVertical: 6,
     backgroundColor: "rgba(76,141,255,0.14)", overflow: "hidden",
   },
-  historyRow: { flexDirection: "row", alignItems: "center", gap: SPACE.md },
-  hBar: { width: 5, height: 34, borderRadius: 3 },
-  when: { fontSize: 12, color: C.text3 },
-  empty: { ...TYPE.body, color: C.text2 },
 });
