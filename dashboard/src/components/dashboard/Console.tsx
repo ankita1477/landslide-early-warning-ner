@@ -12,6 +12,7 @@ import { Inspector } from "./Inspector";
 import { TableView } from "./TableView";
 import { Shortcuts } from "./Shortcuts";
 import { PaneTabs } from "./PaneTabs";
+import type { ThemeMode } from "../../lib/themeMode";
 
 interface Props {
   geojson: FeatureCollection | null;
@@ -21,9 +22,10 @@ interface Props {
   computedAt: string | null;
   loadError: string | null;
   onBack: () => void;
+  theme: { mode: ThemeMode; resolved: "light" | "dark"; setMode: (m: ThemeMode) => void };
 }
 
-export function Console({ geojson, allSegments, health, thresholds, computedAt, loadError, onBack }: Props) {
+export function Console({ geojson, allSegments, health, thresholds, computedAt, loadError, onBack, theme }: Props) {
   const { state, dispatch, visible, counts, select, hover } = useDashboardState(allSegments);
   const [zoomNonce, setZoomNonce] = useState(0);
   const [query, setQuery] = useState("");
@@ -88,6 +90,7 @@ export function Console({ geojson, allSegments, health, thresholds, computedAt, 
           onToggleContrast={() => dispatch({ type: "toggleContrast" })}
           onShortcuts={() => dispatch({ type: "toggleShortcuts" })}
           onTable={() => dispatch({ type: "toggleTable" })}
+          themeMode={theme.mode} onThemeMode={theme.setMode}
         />
 
         <PaneTabs pane={state.pane} onPane={(pane) => dispatch({ type: "pane", pane })} />
@@ -109,6 +112,7 @@ export function Console({ geojson, allSegments, health, thresholds, computedAt, 
               bands={state.bands} brush={state.brush} layer={state.mapLayer}
               onLayer={(layer) => dispatch({ type: "mapLayer", layer })}
               onSelect={select} onHover={hover} zoomNonce={zoomNonce}
+              dark={theme.resolved === "dark"}
             />
           </section>
 

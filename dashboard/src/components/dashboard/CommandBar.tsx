@@ -3,6 +3,8 @@ import { Switch, ToggleGroup, Tooltip } from "radix-ui";
 import type { Health, Tier } from "../../api/client";
 import { TIER_COLOR, TIER_WORD } from "../../theme";
 import { Mark } from "../Mark";
+import { ThemeToggle } from "../ThemeToggle";
+import type { ThemeMode } from "../../lib/themeMode";
 
 interface Props {
   counts: { tier: Tier; n: number }[];
@@ -16,6 +18,8 @@ interface Props {
   onToggleContrast: () => void;
   onShortcuts: () => void;
   onTable: () => void;
+  themeMode: ThemeMode;
+  onThemeMode: (m: ThemeMode) => void;
 }
 
 function scoredLabel(iso: string | null) {
@@ -38,7 +42,7 @@ function Tip({ label, children }: { label: string; children: React.ReactNode }) 
 
 export function CommandBar({
   counts, activeBands, onBands, health, computedAt, stale, onBack,
-  highContrast, onToggleContrast, onShortcuts, onTable,
+  highContrast, onToggleContrast, onShortcuts, onTable, themeMode, onThemeMode,
 }: Props) {
   return (
     <header className="command-bar">
@@ -82,6 +86,7 @@ export function CommandBar({
             </Switch.Root>
           </label>
         </Tip>
+        <ThemeToggle mode={themeMode} onMode={onThemeMode} />
         <Tip label="All segments as a table (t)">
           <button className="icon-btn" onClick={onTable} aria-label="Table view"><Table2 size={16} /></button>
         </Tip>

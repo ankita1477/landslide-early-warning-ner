@@ -63,7 +63,53 @@
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
+  /* Greys the drawn figures are built from, so the slabs re-light in the dark. */
+  --slab-top-1: #e4e9ee; --slab-top-2: #cbd3db;
+  --slab-left-1: #b3bdc7; --slab-left-2: #8f9ba7;
+  --slab-right-1: #c6ced6; --slab-right-2: #a4aeb9;
+  --hill-1: #f4f6f8; --hill-2: #d2dae1; --hill-3: #aeb9c4;
+  --figure-ink: #141c26;
+
   color-scheme: light;
+}
+
+/* ── Dark: slate at night. Not the old navy console — a warm-neutral dark
+      with the same one-ink discipline, and the data colours lifted just enough
+      to read on it. ─────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --fog: #14171c;
+  --fog-2: #1f242b;
+  --panel: #1a1e25;
+  --ink: #eceef1;
+  --ink-2: #aeb5bf;
+  --ink-3: #7a828e;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-hi: rgba(255, 255, 255, 0.2);
+
+  --green-ink: #6cc48a; --yellow-ink: #e4b84a; --orange-ink: #f08a56; --red-ink: #e8675c;
+  --green-wash: rgba(58, 143, 90, 0.2); --yellow-wash: rgba(217, 162, 27, 0.2);
+  --orange-wash: rgba(224, 102, 43, 0.22); --red-wash: rgba(200, 54, 43, 0.24);
+
+  --layer-susceptibility: #6e9be0;
+  --layer-trigger: #c27ab5;
+  --layer-deformation: #4fc2b3;
+  --layer-exposure: #b58a56;
+  --chart-grid: rgba(255, 255, 255, 0.08);
+
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow-float: 0 12px 40px -14px rgba(0, 0, 0, 0.7);
+
+  --slab-top-1: #3a414b; --slab-top-2: #2b313a;
+  --slab-left-1: #20252c; --slab-left-2: #171b21;
+  --slab-right-1: #2a3038; --slab-right-2: #1e232a;
+  --hill-1: #4a525d; --hill-2: #343b45; --hill-3: #252b33;
+  --figure-ink: #000000;
+
+  color-scheme: dark;
+}
+[data-theme="dark"][data-bands="mono"], [data-theme="dark"] [data-bands="mono"] {
+  --green: #4a4438; --yellow: #7a705a; --orange: #b3a889; --red: #f0e6cc;
+  --green-ink: #8d846d; --yellow-ink: #b3a889; --orange-ink: #d6ccb0; --red-ink: #f6efdc;
 }
 
 * { box-sizing: border-box; }

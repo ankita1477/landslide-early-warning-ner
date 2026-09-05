@@ -3,6 +3,7 @@ import type { FeatureCollection } from "geojson";
 import { Landing } from "./components/landing/Landing";
 import { Console } from "./components/dashboard/Console";
 import { api, type Health, type SegmentSummary, type TierThreshold } from "./api/client";
+import { useThemeMode } from "./lib/themeMode";
 import "./styles/tokens.css";
 import "./App.css";
 
@@ -28,6 +29,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const route = useHashRoute();
   const onDashboard = route === "#/dashboard";
+  const theme = useThemeMode();
 
   useEffect(() => {
     Promise.all([api.geojson(), api.watchlist(25), api.health(), api.segments(), api.tiers()])
@@ -54,11 +56,11 @@ export default function App() {
       )}
       {onDashboard ? (
         <Console geojson={geojson} allSegments={all} health={health} thresholds={thresholds}
-                 computedAt={computedAt} loadError={error}
+                 computedAt={computedAt} loadError={error} theme={theme}
                  onBack={() => { window.location.hash = "#/"; }} />
       ) : (
         <Landing segments={all} segmentsLoaded={health?.segments_loaded ?? null}
-                 computedAt={computedAt}
+                 computedAt={computedAt} theme={theme}
                  onEnter={() => { window.location.hash = "#/dashboard"; }} />
       )}
     </>

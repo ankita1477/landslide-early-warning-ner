@@ -20,6 +20,7 @@ interface Props {
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
   zoomNonce: number;
+  dark: boolean;
 }
 
 const STYLE: maplibregl.StyleSpecification = {
@@ -67,8 +68,18 @@ const LAYER_PROPERTY: Record<LayerKey, { property: string; max: number }> = {
   exposure: { property: "exposure", max: 1 },
 };
 
+/** The parts of the map that are chrome, not data: the casing behind the
+ *  road, the label halo, the selection ring, and how dim the basemap sits.
+ *  Everything else keeps its colour in both modes. */
+const CHROME = {
+  light: { casing: "#ffffff", ink: "#141C26", halo: "#ffffff",
+           raster: { "raster-saturation": -1, "raster-contrast": -0.12, "raster-brightness-min": 0.06, "raster-brightness-max": 1 } },
+  dark:  { casing: "#14171c", ink: "#eceef1", halo: "#14171c",
+           raster: { "raster-saturation": -1, "raster-contrast": -0.25, "raster-brightness-min": 0.02, "raster-brightness-max": 0.42 } },
+} as const;
+
 export function MapPane({
-  data, selectedId, hoveredId, bands, brush, layer, onLayer, onSelect, onHover, zoomNonce,
+  data, selectedId, hoveredId, bands, brush, layer, onLayer, onSelect, onHover, zoomNonce, dark,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -217,6 +228,19 @@ export function MapPane({
     if (!m || !ready || !m.getLayer("selected")) return;
     m.setFilter("selected", ["==", ["get", "id"], selectedId ?? hoveredId ?? "__none__"]);
   }, [selectedId, hoveredId, ready]);
+
+  // Re-light the chrome when the mode changes; the road itself never changes.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready || !m.getLayer("casing")) return;
+    const c = CHROME[dark ? "dark" : "light"];
+    m.setPaintProperty("casing", "line-color", c.casing);
+    m.setPaintProperty("risk-dash", "line-color", c.casing);
+    m.setPaintProperty("selected", "line-color", c.ink);
+    m.setPaintProperty("labels", "text-color", c.ink);
+    m.setPaintProperty("labels", "text-halo-color", c.halo);
+    for (const k of Object.keys(c.raster) as (keyof typeof c.raster)[]) m.setPaintProperty("base", k, c.raster[k]);
+  }, [dark, ready]);
 
   useEffect(() => {
     const m = map.current;

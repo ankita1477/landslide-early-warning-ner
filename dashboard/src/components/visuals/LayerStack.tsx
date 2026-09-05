@@ -21,18 +21,18 @@ export function LayerStack() {
          aria-label="Four model layers stacked: terrain, rainfall, radar and people, multiplied into one risk score">
       <defs>
         <linearGradient id="ls-top" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#F7F9FA" /><stop offset="1" stopColor="#DCE2E8" />
+          <stop offset="0" style={{ stopColor: "var(--slab-top-1)" }} /><stop offset="1" style={{ stopColor: "var(--slab-top-2)" }} />
         </linearGradient>
         <linearGradient id="ls-left" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#B9C2CC" /><stop offset="1" stopColor="#98A3AF" />
+          <stop offset="0" style={{ stopColor: "var(--slab-left-1)" }} /><stop offset="1" style={{ stopColor: "var(--slab-left-2)" }} />
         </linearGradient>
         <linearGradient id="ls-right" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#CDD5DC" /><stop offset="1" stopColor="#ADB7C2" />
+          <stop offset="0" style={{ stopColor: "var(--slab-right-1)" }} /><stop offset="1" style={{ stopColor: "var(--slab-right-2)" }} />
         </linearGradient>
       </defs>
 
       {/* The axis the slabs hang on. */}
-      <line x1={cx} y1={baseY + depth + 6} x2={cx} y2={28} stroke="#141C26" strokeOpacity="0.25" strokeDasharray="3 5" />
+      <line x1={cx} y1={baseY + depth + 6} x2={cx} y2={28} stroke="var(--figure-ink)" strokeOpacity="0.25" strokeDasharray="3 5" />
 
       {SLABS.map((slab, i) => {
         const y = baseY - i * gap;
@@ -49,9 +49,9 @@ export function LayerStack() {
 
             {slab.key === "susceptibility" && (
               <>
-                <path d={`M${cx - 90} ${y + 6} C ${cx - 50} ${y - 30}, ${cx + 30} ${y - 26}, ${cx + 84} ${y + 10}`} fill="none" stroke="#141C26" strokeOpacity="0.28" />
-                <path d={`M${cx - 66} ${y + 10} C ${cx - 36} ${y - 14}, ${cx + 20} ${y - 12}, ${cx + 60} ${y + 12}`} fill="none" stroke="#141C26" strokeOpacity="0.28" />
-                <path d={`M${cx - 40} ${y + 12} C ${cx - 20} ${y}, ${cx + 10} ${y}, ${cx + 34} ${y + 14}`} fill="none" stroke="#141C26" strokeOpacity="0.28" />
+                <path d={`M${cx - 90} ${y + 6} C ${cx - 50} ${y - 30}, ${cx + 30} ${y - 26}, ${cx + 84} ${y + 10}`} fill="none" stroke="var(--figure-ink)" strokeOpacity="0.28" />
+                <path d={`M${cx - 66} ${y + 10} C ${cx - 36} ${y - 14}, ${cx + 20} ${y - 12}, ${cx + 60} ${y + 12}`} fill="none" stroke="var(--figure-ink)" strokeOpacity="0.28" />
+                <path d={`M${cx - 40} ${y + 12} C ${cx - 20} ${y}, ${cx + 10} ${y}, ${cx + 34} ${y + 14}`} fill="none" stroke="var(--figure-ink)" strokeOpacity="0.28" />
               </>
             )}
             {slab.key === "trigger" && [0, 1, 2, 3, 4, 5, 6, 7].map((k) => (
@@ -65,7 +65,7 @@ export function LayerStack() {
             {slab.key === "exposure" && [[cx - 40, y - 14], [cx - 18, y - 4], [cx + 6, y - 14], [cx + 30, y - 4]].map(([x, yy], k) => (
               <path key={k}
                     d={`M${x} ${yy} l9 -4.5 l9 4.5 l0 9 l-9 4.5 l-9 -4.5 Z M${x} ${yy} l9 4.5 l0 9 M${x + 9} ${yy + 4.5} l9 -4.5`}
-                    fill={slab.color} fillOpacity="0.85" stroke="#141C26" strokeOpacity="0.4" strokeWidth={0.8} />
+                    fill={slab.color} fillOpacity="0.85" stroke="var(--figure-ink)" strokeOpacity="0.4" strokeWidth={0.8} />
             ))}
 
             <text x={cx + w + 12} y={y + 4} className="ls-label">{slab.label}</text>
