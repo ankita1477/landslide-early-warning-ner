@@ -1,103 +1,110 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import type { LucideIcon } from "lucide-react-native";
+import { Camera, type LucideIcon } from "lucide-react-native";
 import { D, EASE, useReducedMotion } from "../lib/motion";
 import { C, RADIUS, TYPE } from "../lib/theme";
 
 export interface Tab { key: string; label: string; icon: LucideIcon }
 
-/** Bottom bar with a sliding indicator.
+const CENTRE = 66;
+
+/** A floating bar with the one action that is not a place in the middle.
  *
- *  The indicator moves rather than reappearing, so the eye follows the change
- *  instead of re-reading the bar. The active glyph is drawn heavier as well as
- *  brighter, and the label is always shown, because an icon alone is a guess.
+ *  Four destinations sit in a pill lifted off the page; reporting is a raised
+ *  ink button between them because it is a thing you do, not somewhere you go,
+ *  and because a person on a roadside should find it without looking.
  */
-export function TabBar({ tabs, active, onChange }: {
-  tabs: Tab[]; active: string; onChange: (key: string) => void;
+export function TabBar({ tabs, active, onChange, onReport }: {
+  tabs: Tab[]; active: string; onChange: (key: string) => void; onReport: () => void;
 }) {
-  // -1 when a pushed screen is covering the tabs: none of them is current, so
-  // the indicator is withdrawn rather than left pointing at a screen the person
-  // is not on.
   const index = tabs.findIndex((t) => t.key === active);
   const slide = useRef(new Animated.Value(0)).current;
   const [barWidth, setBarWidth] = useState(0);
   const reduced = useReducedMotion();
-  const tabWidth = barWidth / tabs.length;
+  const slot = (barWidth - CENTRE) / tabs.length;
+  const half = tabs.length / 2;
 
-  // Translating by measured pixels rather than a percentage: the native driver
-  // cannot animate percentage transforms, and a percentage indicator silently
-  // stops moving on device while still working on web.
+  // The two right-hand tabs sit past the centre button, so their slots start
+  // one button-width later. Measured pixels, not percentages: the native
+  // driver cannot animate a percentage transform.
+  const offsetFor = (i: number) => i * slot + (i >= half ? CENTRE : 0);
+
   useEffect(() => {
-    if (index < 0) return;
+    if (index < 0 || barWidth === 0) return;
     Animated.timing(slide, {
-      toValue: index * tabWidth,
-      duration: reduced ? 0 : D.page,
-      easing: EASE.out,
-      useNativeDriver: true,
+      toValue: offsetFor(index), duration: reduced ? 0 : D.page, easing: EASE.out, useNativeDriver: true,
     }).start();
-  }, [index, tabWidth, slide, reduced]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, barWidth, slide, reduced]);
 
   return (
-    <View style={styles.bar} onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}>
-      {barWidth > 0 && index >= 0 && (
-        <Animated.View
-          style={[styles.indicator, { width: tabWidth, transform: [{ translateX: slide }] }]}
-        >
-          <View style={styles.indicatorBar} />
-        </Animated.View>
-      )}
-      {tabs.map((tab) => (
-        <TabButton key={tab.key} tab={tab} active={tab.key === active} onPress={() => onChange(tab.key)} />
-      ))}
+    <View style={styles.wrap} pointerEvents="box-none">
+      <View style={styles.bar} onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}>
+        {barWidth > 0 && index >= 0 && (
+          <Animated.View style={[styles.pill, { width: slot, transform: [{ translateX: slide }] }]}>
+            <View style={styles.pillFill} />
+          </Animated.View>
+        )}
+        {tabs.slice(0, half).map((tab) => (
+          <TabButton key={tab.key} tab={tab} active={tab.key === active} onPress={() => onChange(tab.key)} />
+        ))}
+        <View style={{ width: CENTRE }} />
+        {tabs.slice(half).map((tab) => (
+          <TabButton key={tab.key} tab={tab} active={tab.key === active} onPress={() => onChange(tab.key)} />
+        ))}
+      </View>
+      <Pressable
+        onPress={onReport}
+        style={({ pressed }) => [styles.centre, pressed && styles.centrePressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Report a problem"
+      >
+        <Camera color={C.paper} size={24} strokeWidth={2.1} />
+      </Pressable>
     </View>
   );
 }
 
 function TabButton({ tab, active, onPress }: { tab: Tab; active: boolean; onPress: () => void }) {
-  const lift = useRef(new Animated.Value(active ? 1 : 0)).current;
-  const press = useRef(new Animated.Value(0)).current;
-  const reduced = useReducedMotion();
   const Glyph = tab.icon;
-
-  useEffect(() => {
-    Animated.timing(lift, {
-      toValue: active ? 1 : 0, duration: reduced ? 0 : D.card,
-      easing: EASE.out, useNativeDriver: true,
-    }).start();
-  }, [active, lift, reduced]);
-
-  const scale = Animated.add(
-    lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }),
-    press.interpolate({ inputRange: [0, 1], outputRange: [0, -0.08] }),
-  );
-  const translateY = lift.interpolate({ inputRange: [0, 1], outputRange: [0, -1.5] });
-
   return (
     <Pressable
       style={styles.tab}
       onPress={onPress}
-      onPressIn={() => Animated.timing(press, { toValue: 1, duration: 90, useNativeDriver: true }).start()}
-      onPressOut={() => Animated.timing(press, { toValue: 0, duration: 160, useNativeDriver: true }).start()}
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       accessibilityLabel={tab.label}
     >
-      <Animated.View style={{ transform: [{ scale }, { translateY }] }}>
-        <Glyph color={active ? C.text1 : C.text3} size={23} strokeWidth={active ? 2.3 : 1.8} />
-      </Animated.View>
+      <Glyph color={active ? C.ink : C.ink3} size={22} strokeWidth={active ? 2.3 : 1.8} />
       <Text style={[styles.label, active && styles.labelOn]}>{tab.label}</Text>
     </Pressable>
   );
 }
 
+export const TABBAR_HEIGHT = 96;
+
 const styles = StyleSheet.create({
-  bar: {
-    flexDirection: "row", borderTopWidth: 1, borderTopColor: C.border,
-    backgroundColor: C.surface, paddingBottom: Platform.OS === "ios" ? 6 : 0,
+  wrap: {
+    position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center",
+    paddingHorizontal: 18, paddingBottom: Platform.OS === "ios" ? 22 : 14,
   },
-  indicator: { position: "absolute", top: 0, left: 0, height: 3, alignItems: "center" },
-  indicatorBar: { width: 28, height: 3, backgroundColor: C.accent, borderBottomLeftRadius: RADIUS.pill, borderBottomRightRadius: RADIUS.pill },
-  tab: { flex: 1, alignItems: "center", paddingTop: 12, paddingBottom: 10, gap: 5, minHeight: 60 },
-  label: { ...TYPE.label, fontSize: 11, color: C.text3 },
-  labelOn: { color: C.text1 },
+  bar: {
+    flexDirection: "row", alignItems: "center", width: "100%", height: 66,
+    backgroundColor: C.white, borderRadius: RADIUS.pill, borderWidth: 1, borderColor: C.line,
+    shadowColor: "#1A1A1A", shadowOpacity: 0.12, shadowRadius: 22, shadowOffset: { width: 0, height: 10 },
+    elevation: 10, paddingHorizontal: 6,
+  },
+  pill: { position: "absolute", top: 6, bottom: 6, left: 6, padding: 3 },
+  pillFill: { flex: 1, borderRadius: RADIUS.pill, backgroundColor: C.paper2 },
+  tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 3, height: 54 },
+  label: { ...TYPE.label, fontSize: 11, color: C.ink3 },
+  labelOn: { color: C.ink },
+  centre: {
+    position: "absolute", top: -14, width: 62, height: 62, borderRadius: 31,
+    backgroundColor: C.ink, alignItems: "center", justifyContent: "center",
+    borderWidth: 4, borderColor: C.paper,
+    shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+  centrePressed: { transform: [{ scale: 0.94 }] },
 });

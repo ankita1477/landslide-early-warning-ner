@@ -27,6 +27,9 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "backgroundColor": "#05070d"
+    "backgroundColor": "#05070d",
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

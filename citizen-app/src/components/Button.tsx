@@ -30,9 +30,7 @@ export function Button({
   useEffect(() => () => { alive.current = false; }, []);
 
   const to = (value: number) =>
-    Animated.timing(press, {
-      toValue: value, duration: D.fast, easing: EASE.out, useNativeDriver: true,
-    }).start();
+    Animated.timing(press, { toValue: value, duration: D.fast, easing: EASE.out, useNativeDriver: true }).start();
 
   const run = async () => {
     if (disabled || state !== "idle") return;
@@ -49,14 +47,12 @@ export function Button({
 
   const scale = reduced ? 1 : press.interpolate({ inputRange: [0, 1], outputRange: [1, 0.975] });
   const busy = state === "loading";
-  const ink = kind === "primary" ? C.bg : C.text1;
+  const ink = kind === "secondary" ? C.ink : C.paper;
 
   return (
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
       <Pressable
-        onPress={run}
-        onPressIn={() => to(1)}
-        onPressOut={() => to(0)}
+        onPress={run} onPressIn={() => to(1)} onPressOut={() => to(0)}
         disabled={disabled || busy}
         style={[styles.base, styles[kind], (disabled || busy) && styles.off]}
         accessibilityRole="button"
@@ -67,10 +63,9 @@ export function Button({
           <ActivityIndicator color={ink} />
         ) : (
           <View style={styles.row}>
-            {state === "done" ? <Check color={ink} size={18} strokeWidth={2.6} /> : Glyph ? <Glyph color={ink} size={18} strokeWidth={2.2} /> : null}
-            <Text style={[styles.label, { color: ink }]}>
-              {state === "done" ? doneLabel : label}
-            </Text>
+            <Text style={[styles.label, { color: ink }]}>{state === "done" ? doneLabel : label}</Text>
+            {state === "done" ? <Check color={ink} size={18} strokeWidth={2.6} />
+              : Glyph ? <Glyph color={ink} size={18} strokeWidth={2.2} /> : null}
           </View>
         )}
       </Pressable>
@@ -79,14 +74,11 @@ export function Button({
 }
 
 const styles = StyleSheet.create({
-  base: {
-    minHeight: 56, borderRadius: RADIUS.control, alignItems: "center",
-    justifyContent: "center", paddingHorizontal: 20, borderWidth: 1,
-  },
-  row: { flexDirection: "row", alignItems: "center", gap: 9 },
-  primary: { backgroundColor: C.text1, borderColor: C.text1 },
-  secondary: { backgroundColor: C.surfaceHi, borderColor: C.borderHi },
-  danger: { backgroundColor: C.red, borderColor: C.red },
+  base: { minHeight: 56, borderRadius: RADIUS.control, alignItems: "center", justifyContent: "center", paddingHorizontal: 22 },
+  row: { flexDirection: "row", alignItems: "center", gap: 10 },
+  primary: { backgroundColor: C.ink },
+  secondary: { backgroundColor: C.paper2 },
+  danger: { backgroundColor: C.red },
   off: { opacity: 0.45 },
-  label: { ...TYPE.bodyStrong },
+  label: { ...TYPE.bodyStrong, fontSize: 16.5 },
 });

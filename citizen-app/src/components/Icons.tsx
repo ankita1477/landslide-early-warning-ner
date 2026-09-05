@@ -4,7 +4,7 @@ import {
 } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 import type { ReasonIcon } from "../lib/explain";
-import { C, RADIUS, TIER_COLOR, type Tier } from "../lib/theme";
+import { C, RADIUS, TIER_INK, TIER_WASH, type Tier } from "../lib/theme";
 
 /** One glyph per band, so a colour-blind reader has a shape as well as a word. */
 export const TIER_ICON: Record<Tier, LucideIcon> = {
@@ -16,7 +16,7 @@ const REASON: Record<ReasonIcon, LucideIcon> = {
   slope: Mountain, moving: Radar, homes: Building2,
 };
 
-export function Reason({ icon, color = C.text2, size = 20 }: {
+export function Reason({ icon, color = C.ink2, size = 20 }: {
   icon: ReasonIcon; color?: string; size?: number;
 }) {
   const Glyph = REASON[icon];
@@ -24,17 +24,12 @@ export function Reason({ icon, color = C.text2, size = 20 }: {
 }
 
 /** A glyph on a soft square: the unit every list row in the app is built from. */
-export function IconTile({ icon: Glyph, tier, color, size = 44 }: {
+export function IconTile({ icon: Glyph, tier, color, size = 42 }: {
   icon: LucideIcon; tier?: Tier; color?: string; size?: number;
 }) {
-  const ink = color ?? (tier ? TIER_COLOR[tier] : C.text1);
+  const ink = color ?? (tier ? TIER_INK[tier] : C.ink);
   return (
-    <View
-      style={[
-        styles.tile,
-        { width: size, height: size, backgroundColor: tier ? `${TIER_COLOR[tier]}1F` : C.surfaceHi },
-      ]}
-    >
+    <View style={[styles.tile, { width: size, height: size, backgroundColor: tier ? TIER_WASH[tier] : C.paper2 }]}>
       <Glyph color={ink} size={Math.round(size * 0.5)} strokeWidth={1.9} />
     </View>
   );

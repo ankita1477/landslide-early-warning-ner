@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { Card } from "../components/Card";
-import { IconTile } from "../components/Icons";
-import { TIER_ICON } from "../components/Icons";
+import { IconTile, TIER_ICON } from "../components/Icons";
 import { ListSkeleton } from "../components/Skeleton";
+import { TABBAR_HEIGHT } from "../components/TabBar";
 import { Quiet } from "../illustrations/Quiet";
 import { history, type WarningEntry } from "../lib/history";
-import { C, SPACE, TIER_COLOR, TIER_WORD, TYPE, type Tier } from "../lib/theme";
+import { C, RADIUS, SPACE, TIER_INK, TIER_WORD, TYPE, type Tier } from "../lib/theme";
 
 /** Every warning this phone has shown, newest first.
  *
@@ -16,44 +15,44 @@ import { C, SPACE, TIER_COLOR, TIER_WORD, TYPE, type Tier } from "../lib/theme";
  */
 export function Alerts() {
   const [past, setPast] = useState<WarningEntry[] | null>(null);
-
   const load = useCallback(async () => setPast(await history()), []);
   useEffect(() => { void load(); }, [load]);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.h1}>Alerts</Text>
-      <Text style={styles.sub}>
-        Every time the risk on your stretch changes, it is saved here.
-      </Text>
+      <Text style={styles.sub}>Every time the risk on your stretch changes, it is saved here.</Text>
 
       {past === null && <ListSkeleton rows={4} />}
 
       {past?.length === 0 && (
-        <Card style={styles.empty}>
-          <Quiet size={128} />
+        <View style={styles.empty}>
+          <Quiet size={120} />
           <Text style={styles.emptyTitle}>All quiet</Text>
           <Text style={styles.emptyBody}>
             No alerts yet. Keep the app installed and it will record each change
             for the road you travel on.
           </Text>
-        </Card>
+        </View>
       )}
 
-      {past?.map((entry) => {
-        const t = entry.tier as Tier;
-        return (
-          <Card key={entry.at} style={styles.row}>
-            <IconTile icon={TIER_ICON[t]} tier={t} />
-            <View style={styles.text}>
-              <Text style={[styles.word, { color: TIER_COLOR[t] }]}>{TIER_WORD[t]}</Text>
-              <Text style={styles.place}>NH-10 · km {entry.km.toFixed(0)}</Text>
-              <Text style={styles.reason}>{entry.reason}</Text>
-            </View>
-            <Text style={styles.when}>{when(entry.at)}</Text>
-          </Card>
-        );
-      })}
+      {past && past.length > 0 && (
+        <View style={styles.group}>
+          {past.map((entry, i) => {
+            const t = entry.tier as Tier;
+            return (
+              <View key={entry.at} style={[styles.row, i === past.length - 1 && styles.rowLast]}>
+                <IconTile icon={TIER_ICON[t]} tier={t} size={40} />
+                <View style={styles.text}>
+                  <Text style={[styles.word, { color: TIER_INK[t] }]}>{TIER_WORD[t]}</Text>
+                  <Text style={styles.place}>NH-10 · km {entry.km.toFixed(0)}</Text>
+                  <Text style={styles.reason}>{entry.reason}</Text>
+                </View>
+                <Text style={styles.when}>{when(entry.at)}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -69,16 +68,17 @@ function when(iso: string): string {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { padding: SPACE.md, gap: SPACE.sm, paddingBottom: SPACE.xl },
-  h1: { ...TYPE.hero, fontSize: 28, color: C.text1 },
-  sub: { ...TYPE.body, color: C.text2, marginBottom: SPACE.xs },
-  row: { flexDirection: "row", alignItems: "center", gap: SPACE.md },
+  content: { padding: SPACE.lg, paddingTop: SPACE.xs, paddingBottom: TABBAR_HEIGHT + SPACE.lg, gap: SPACE.md },
+  sub: { ...TYPE.body, color: C.ink2 },
+  group: { backgroundColor: C.white, borderRadius: RADIUS.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  row: { flexDirection: "row", alignItems: "center", gap: SPACE.md, padding: SPACE.md, borderBottomWidth: 1, borderBottomColor: C.line },
+  rowLast: { borderBottomWidth: 0 },
   text: { flex: 1, gap: 1 },
   word: { ...TYPE.eyebrow, fontSize: 10.5 },
-  place: { ...TYPE.bodyStrong, fontSize: 15.5, color: C.text1 },
-  reason: { fontSize: 13, lineHeight: 18, color: C.text3 },
-  when: { fontSize: 12, color: C.text3, ...TYPE.num },
+  place: { ...TYPE.bodyStrong, fontSize: 15.5, lineHeight: 21, color: C.ink },
+  reason: { ...TYPE.small, color: C.ink3 },
+  when: { ...TYPE.small, ...TYPE.num, color: C.ink3 },
   empty: { alignItems: "center", paddingVertical: SPACE.xl, gap: SPACE.xs },
-  emptyTitle: { ...TYPE.title, color: C.text1, marginTop: SPACE.sm },
-  emptyBody: { ...TYPE.body, fontSize: 15, color: C.text2, textAlign: "center", maxWidth: 300 },
+  emptyTitle: { ...TYPE.h2, color: C.ink, marginTop: SPACE.sm },
+  emptyBody: { ...TYPE.body, fontSize: 15, color: C.ink2, textAlign: "center", maxWidth: 300 },
 });

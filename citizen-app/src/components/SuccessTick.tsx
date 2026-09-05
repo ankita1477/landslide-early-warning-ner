@@ -28,7 +28,7 @@ export function SuccessTick({ title, body }: { title: string; body: string }) {
   return (
     <View style={styles.wrap}>
       <Svg width={72} height={72} viewBox="0 0 72 72">
-        <Circle cx={36} cy={36} r={31} fill="rgba(34,197,94,0.14)" stroke={C.green} strokeWidth={2} />
+        <Circle cx={36} cy={36} r={31} fill="#DCEFE1" stroke={C.green} strokeWidth={2} />
         <AnimatedPath
           d="M22 37 L32 47 L51 26"
           fill="none" stroke={C.green} strokeWidth={4.5}
@@ -45,6 +45,6 @@ export function SuccessTick({ title, body }: { title: string; body: string }) {
 
 const styles = StyleSheet.create({
   wrap: { alignItems: "center", gap: SPACE.sm, paddingVertical: SPACE.lg },
-  title: { ...TYPE.title, color: C.text1, marginTop: SPACE.xs },
-  body: { ...TYPE.body, color: C.text2, textAlign: "center", maxWidth: 34 * 8 },
+  title: { ...TYPE.h2, color: C.ink, marginTop: SPACE.xs },
+  body: { ...TYPE.body, color: C.ink2, textAlign: "center", maxWidth: 34 * 8 },
 });

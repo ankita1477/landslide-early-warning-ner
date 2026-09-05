@@ -17,9 +17,10 @@ export function Skeleton({ height = 16, width = "100%", style }: {
   useEffect(() => {
     if (reduced) return;
     const loop = Animated.loop(
-      Animated.timing(shimmer, {
-        toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true,
-      }),
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
     );
     loop.start();
     return () => loop.stop();
@@ -28,24 +29,22 @@ export function Skeleton({ height = 16, width = "100%", style }: {
   return (
     <View style={[styles.base, { height, width } as ViewStyle, style]}>
       <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          styles.sheen,
-          { opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.6] }) },
-        ]}
+        style={[StyleSheet.absoluteFill, styles.sheen,
+          { opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0, 0.6] }) }]}
       />
     </View>
   );
 }
 
-/** The risk card's shape, so the page does not reflow when the reading lands. */
+/** The Today screen's shape, so the page does not reflow when the reading lands. */
 export function RiskSkeleton() {
   return (
-    <View style={styles.card}>
-      <Skeleton height={12} width={72} />
-      <Skeleton height={30} width="82%" style={{ marginTop: SPACE.sm }} />
-      <Skeleton height={16} width="60%" style={{ marginTop: SPACE.xs }} />
-      <Skeleton height={52} style={{ marginTop: SPACE.md, borderRadius: RADIUS.control }} />
+    <View style={styles.block}>
+      <Skeleton height={12} width={120} />
+      <Skeleton height={190} style={{ marginTop: SPACE.md, borderRadius: RADIUS.card }} />
+      <Skeleton height={34} width="78%" style={{ marginTop: SPACE.lg }} />
+      <Skeleton height={34} width="50%" style={{ marginTop: SPACE.xs }} />
+      <Skeleton height={16} width="60%" style={{ marginTop: SPACE.md }} />
     </View>
   );
 }
@@ -61,12 +60,7 @@ export function ListSkeleton({ rows = 4 }: { rows?: number }) {
 }
 
 const styles = StyleSheet.create({
-  base: {
-    backgroundColor: C.surfaceHi, borderRadius: 8, overflow: "hidden",
-  },
-  sheen: { backgroundColor: "rgba(255,255,255,0.06)" },
-  card: {
-    backgroundColor: C.surface, borderRadius: RADIUS.card, borderWidth: 1,
-    borderColor: C.border, padding: SPACE.lg,
-  },
+  base: { backgroundColor: C.paper2, borderRadius: 8, overflow: "hidden" },
+  sheen: { backgroundColor: C.white },
+  block: { padding: SPACE.lg },
 });
