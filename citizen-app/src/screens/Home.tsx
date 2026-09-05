@@ -73,6 +73,8 @@ export function Home({ onRoute, onMap }: { onRoute: () => void; onMap: () => voi
                 ? `${Math.round(point.data.distance_to_segment_m)} m from you`
                 : "Showing Sevoke — turn on location for your own position"
             }
+            updated={ageLabel(point.fetchedAt)}
+            onRoute={onRoute}
           />
 
           {point.stale && (
@@ -87,7 +89,6 @@ export function Home({ onRoute, onMap }: { onRoute: () => void; onMap: () => voi
 
           {detail && <WhyCard factors={detail.components} tier={tier} />}
 
-          <Button label="Check my route" onPress={onRoute} />
           <Button label="See the map" onPress={onMap} kind="secondary" />
         </>
       )}

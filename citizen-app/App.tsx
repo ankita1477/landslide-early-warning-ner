@@ -5,6 +5,7 @@ import { Route } from "./src/screens/Route";
 import { MapScreen } from "./src/screens/MapScreen";
 import { Report } from "./src/screens/Report";
 import { Safety } from "./src/screens/Safety";
+import { Splash } from "./src/screens/Splash";
 import { C, SPACE, TYPE } from "./src/lib/theme";
 
 const TABS = [
@@ -19,6 +20,11 @@ type TabKey = (typeof TABS)[number]["key"];
 
 export default function App() {
   const [tab, setTab] = useState<TabKey>("home");
+  const [entered, setEntered] = useState(false);
+
+  // The splash is shown once per launch, not stored: someone opening the app
+  // during a storm should see the mark and the way in, not a remembered state.
+  if (!entered) return <Splash onEnter={() => setEntered(true)} />;
 
   return (
     <SafeAreaView style={styles.app}>

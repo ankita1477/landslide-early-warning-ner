@@ -76,6 +76,27 @@ export function headline(factors: Factors, tier: Tier): string {
   return "Raised risk on this stretch";
 }
 
+/** The headline a person reads before anything else. Written as where they are,
+ *  not as what the model produced. */
+export const SITUATION: Record<Tier, { headline: string; sub: string }> = {
+  green: {
+    headline: "You're in a low-risk area",
+    sub: "No landslide warning nearby",
+  },
+  yellow: {
+    headline: "Conditions are being watched",
+    sub: "No warning yet — check again before you travel",
+  },
+  orange: {
+    headline: "There's a warning near you",
+    sub: "Landslides are possible on this stretch",
+  },
+  red: {
+    headline: "Danger on this stretch",
+    sub: "Landslides are likely here right now",
+  },
+};
+
 export const ACTION: Record<Tier, { label: string; action: string; urgent: boolean }> = {
   green: {
     label: "Safe to travel",
