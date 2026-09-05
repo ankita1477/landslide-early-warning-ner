@@ -21,7 +21,7 @@ Built and validated on the **NH-10 Sevoke–Gangtok pilot corridor** — 109.6 k
 
 The binding constraint is not the model. It is inventory location error: detection is **28% for events within 1 km of the corridor and 8% beyond it**, because the global catalogues locate most landslides to 5–25 km.
 
-Full figures, including what did not work and why, in [§16A Results](#16a-results). Delivery over SMS and IVR (§9.3) is designed but not built.
+Full figures, including what did not work and why, in [§16A Results](#16a-results). SMS dispatch is built and tested but runs dry — it has no provider credentials, and only English has been through review, so no other language will send. `make alerts` reports exactly what could and could not reach a phone.
 
 ---
 
@@ -1440,7 +1440,7 @@ A dedicated test guards the property that matters most: **the spatial CV splitte
 | **4 — Deformation layer** | LiCSAR chain over the corridor, displacement time series, change-point detection, coverage flags | ☑ built, but **not observable here** — coherence 0.095 median against a 0.30 threshold |
 | **5 — Fusion & exposure** | Runout buffers, segment scoring, tier calibration | ☑ 116 segments; habitation joins not built |
 | **6 — API & dashboard** | FastAPI endpoints, React dashboard with map, watchlist, corridor strip and factor breakdown | ☑ 7 endpoints; TiTiler tiles and historical replay not built |
-| **7 — Delivery** | Citizen app, SMS/IVR gateway, six-language templates, offline mode, delivery tracking | ☐ **not started** — the warning currently stops at the dashboard |
+| **7 — Delivery** | SMS gateway, escalation dispatcher, delivery tracking | ☑ *partial* — dispatcher and templates built and tested; **English only** until translations are reviewed, and **dry-run only** without provider credentials. Citizen app and IVR not built |
 | **8 — Validation** | Hindcast, metric report, lead-time distribution | ☑ **8-day warning** on a real event; 42-event walk-forward study — see §16A |
 | **9 — Hardening & scale-out** | Kubernetes deployment, monitoring, CI/CD, OGC export, extension beyond the pilot corridor | ☐ not started |
 

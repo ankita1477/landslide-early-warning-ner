@@ -1,4 +1,4 @@
-.PHONY: help check venv install up down logs db-shell migrate verify clean api dashboard test lint
+.PHONY: help check venv install up down logs db-shell migrate verify clean api dashboard alerts test lint
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -48,6 +48,9 @@ test:             ## Run the test suite
 
 lint:             ## Lint the codebase
 	./.venv/bin/ruff check .
+
+alerts:           ## Report whether the alerting layer could warn anyone
+	./.venv/bin/python -m alerting.readiness
 
 clean:            ## Remove containers and volumes (DESTROYS DATA)
 	docker compose down -v
