@@ -49,6 +49,15 @@ export interface SegmentSummary {
   tier: Tier;
 }
 
+export interface SegmentDetail extends SegmentSummary {
+  components: {
+    susceptibility: number;
+    trigger_probability: number;
+    deformation_modifier: number;
+    exposure: number;
+  };
+}
+
 export interface PointRisk {
   lat: number;
   lon: number;
@@ -106,11 +115,25 @@ export const api = {
     fetchOrRecall<{ count: number; segments: SegmentSummary[] }>(
       "/risk/segments?limit=500", "corridor",
     ),
+  segment: (id: string) =>
+    fetchOrRecall<SegmentDetail>(
+      `/risk/segments/${encodeURIComponent(id)}`, `segment:${id}`,
+    ),
+  geojson: () =>
+    fetchOrRecall<{ type: string; features: GeoFeature[] }>("/risk/geojson", "geojson"),
   watchlist: () =>
     fetchOrRecall<{ count: number; segments: SegmentSummary[] }>(
       "/risk/watchlist?limit=25", "watchlist",
     ),
 };
+
+export interface GeoFeature {
+  properties: {
+    id: string; chainage_km: number; tier: Tier; risk: number;
+    susceptibility: number; trigger_prob: number; deform_mod: number; exposure: number;
+  };
+  geometry: { type: string; coordinates: [number, number][] };
+}
 
 export function ageLabel(iso: string): string {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);

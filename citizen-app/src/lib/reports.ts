@@ -14,13 +14,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const KEY = "queued-reports";
 
-export type Category = "crack" | "seepage" | "minor slip" | "road blocked";
+export type Category = "blocked" | "rocks" | "crack" | "water";
 
-export const CATEGORIES: { key: Category; label: string; help: string }[] = [
-  { key: "crack", label: "Crack", help: "New cracks in the road or slope above" },
-  { key: "seepage", label: "Water seeping", help: "Water coming out of the hillside" },
-  { key: "minor slip", label: "Small slip", help: "Soil or rocks have come down" },
-  { key: "road blocked", label: "Road blocked", help: "The road is impassable now" },
+export const CATEGORIES: { key: Category; label: string; help: string; icon: string }[] = [
+  { key: "blocked", label: "Road blocked", help: "Nothing can pass right now", icon: "🚧" },
+  { key: "rocks", label: "Falling rocks", help: "Rocks or debris coming down", icon: "🪨" },
+  { key: "crack", label: "Cracks", help: "New cracks in the road or the slope", icon: "🧱" },
+  { key: "water", label: "Water flowing", help: "Water coming out of the hillside", icon: "💧" },
 ];
 
 export interface Report {
@@ -29,6 +29,7 @@ export interface Report {
   note: string;
   lat: number | null;
   lon: number | null;
+  photoUri: string | null;
   createdAt: string;
   sent: boolean;
 }
@@ -44,6 +45,7 @@ export async function queued(): Promise<Report[]> {
 
 export async function submit(
   category: Category, note: string, lat: number | null, lon: number | null,
+  photoUri: string | null = null,
 ): Promise<Report> {
   const report: Report = {
     id: `${Date.now()}`,
@@ -51,6 +53,7 @@ export async function submit(
     note: note.trim(),
     lat,
     lon,
+    photoUri,
     createdAt: new Date().toISOString(),
     sent: false,
   };

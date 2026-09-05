@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "NH-10 Landslide Alerts",
-    "slug": "nh10-landslide-alerts",
+    "name": "Landsafe NER",
+    "slug": "landsafe-ner",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
