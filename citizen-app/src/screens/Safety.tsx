@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { List } from "react-native-paper";
+import { Ambulance, Backpack, ChevronDown, ChevronUp, Phone, TriangleAlert, type LucideIcon } from "lucide-react-native";
 import { Card } from "../components/Card";
+import { IconTile } from "../components/Icons";
 import { C, RADIUS, SPACE, TYPE } from "../lib/theme";
 
 /** Advice a person can follow without training, in the order they need it. */
-const GUIDE = [
+const GUIDE: { key: string; title: string; icon: LucideIcon; points: string[] }[] = [
   {
     key: "before",
     title: "Before you travel",
-    icon: "🎒",
+    icon: Backpack,
     points: [
       "Check this app and the weather before setting out.",
       "Tell someone your route and when you expect to arrive.",
@@ -20,7 +23,7 @@ const GUIDE = [
   {
     key: "during",
     title: "If a landslide happens",
-    icon: "⚠️",
+    icon: TriangleAlert,
     points: [
       "Do not try to drive across fallen debris — more can follow.",
       "Move away from the slope, not along the road below it.",
@@ -32,7 +35,7 @@ const GUIDE = [
   {
     key: "after",
     title: "After a landslide",
-    icon: "🚑",
+    icon: Ambulance,
     points: [
       "Stay clear of the slope — the ground stays unstable for days.",
       "Do not touch fallen electrical lines or poles.",
@@ -41,7 +44,7 @@ const GUIDE = [
       "Check on neighbours, especially elderly people living alone.",
     ],
   },
-] as const;
+];
 
 /** Verified national and state numbers. A wrong emergency number in an app like
  *  this is worse than no app, so these are the standard published lines only. */
@@ -57,36 +60,39 @@ export function Safety() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-
-      {GUIDE.map((section) => {
-        const expanded = open === section.key;
-        return (
-          <Pressable
-            key={section.key}
-            onPress={() => setOpen(expanded ? null : section.key)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded }}
-          >
-            <Card>
-              <View style={styles.head}>
-                <Text style={styles.icon}>{section.icon}</Text>
-                <Text style={styles.title}>{section.title}</Text>
-                <Text style={styles.chev}>{expanded ? "−" : "+"}</Text>
-              </View>
-              {expanded && (
-                <View style={styles.points}>
-                  {section.points.map((point) => (
-                    <View key={point} style={styles.point}>
-                      <Text style={styles.bullet}>•</Text>
-                      <Text style={styles.pointText}>{point}</Text>
-                    </View>
-                  ))}
+      <List.Section style={styles.section}>
+        {GUIDE.map((section) => {
+          const expanded = open === section.key;
+          return (
+            <List.Accordion
+              key={section.key}
+              title={section.title}
+              expanded={expanded}
+              onPress={() => setOpen(expanded ? null : section.key)}
+              left={() => <IconTile icon={section.icon} size={40} />}
+              right={({ isExpanded }) => (
+                <View style={styles.chevron}>
+                  {isExpanded
+                    ? <ChevronUp color={C.text2} size={20} />
+                    : <ChevronDown color={C.text3} size={20} />}
                 </View>
               )}
-            </Card>
-          </Pressable>
-        );
-      })}
+              style={[styles.accordion, expanded && styles.accordionOpen]}
+              titleStyle={styles.accordionTitle}
+              rippleColor="rgba(255,255,255,0.06)"
+            >
+              <View style={styles.points}>
+                {section.points.map((point, i) => (
+                  <View key={point} style={styles.point}>
+                    <Text style={styles.bullet}>{i + 1}</Text>
+                    <Text style={styles.pointText}>{point}</Text>
+                  </View>
+                ))}
+              </View>
+            </List.Accordion>
+          );
+        })}
+      </List.Section>
 
       <Text style={styles.h2}>Emergency numbers</Text>
       {CONTACTS.map((contact) => (
@@ -97,6 +103,7 @@ export function Safety() {
           accessibilityLabel={`Call ${contact.label} on ${contact.number}`}
         >
           <Card style={styles.contact}>
+            <IconTile icon={Phone} color={C.accent} size={40} />
             <View style={styles.contactText}>
               <Text style={styles.contactLabel}>{contact.label}</Text>
               <Text style={styles.contactNote}>{contact.note}</Text>
@@ -105,30 +112,40 @@ export function Safety() {
           </Card>
         </Pressable>
       ))}
-
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.bg },
+  screen: { flex: 1 },
   content: { padding: SPACE.md, gap: SPACE.sm, paddingBottom: SPACE.xl },
-  h2: { ...TYPE.title, color: C.text1, marginTop: SPACE.lg, marginBottom: SPACE.xs },
-  head: { flexDirection: "row", alignItems: "center", gap: 12 },
-  icon: { fontSize: 24 },
-  title: { ...TYPE.bodyStrong, fontSize: 17, color: C.text1, flex: 1 },
-  chev: { fontSize: 22, color: C.text3, width: 22, textAlign: "center" },
-  points: { marginTop: SPACE.md, gap: SPACE.sm },
-  point: { flexDirection: "row", gap: 10 },
-  bullet: { color: C.text3, fontSize: 16, lineHeight: 24 },
+  section: { marginVertical: 0, gap: SPACE.sm },
+  accordion: {
+    backgroundColor: C.surface, borderRadius: RADIUS.card, borderWidth: 1,
+    borderColor: C.border, paddingLeft: SPACE.sm, paddingVertical: 4,
+  },
+  accordionOpen: { borderColor: C.borderHi },
+  chevron: { justifyContent: "center", paddingRight: SPACE.xs },
+  accordionTitle: { ...TYPE.bodyStrong, fontSize: 17, color: C.text1 },
+  points: {
+    backgroundColor: C.surface, borderBottomLeftRadius: RADIUS.card, borderBottomRightRadius: RADIUS.card,
+    marginTop: -RADIUS.card, paddingTop: RADIUS.card + SPACE.xs, paddingBottom: SPACE.md,
+    paddingHorizontal: SPACE.md, gap: SPACE.sm, borderWidth: 1, borderTopWidth: 0, borderColor: C.border,
+  },
+  point: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
+  bullet: {
+    ...TYPE.micro, ...TYPE.num, color: C.text3, width: 22, height: 22, lineHeight: 22, textAlign: "center",
+    borderRadius: 11, backgroundColor: C.surfaceHi, overflow: "hidden", marginTop: 1,
+  },
   pointText: { ...TYPE.body, color: C.text2, flex: 1 },
+  h2: { ...TYPE.eyebrow, color: C.text3, marginTop: SPACE.lg, marginBottom: SPACE.xs },
   contact: { flexDirection: "row", alignItems: "center", gap: SPACE.md, minHeight: 68 },
   contactText: { flex: 1, gap: 2 },
   contactLabel: { ...TYPE.bodyStrong, color: C.text1 },
   contactNote: { fontSize: 12.5, color: C.text3 },
   number: {
-    ...TYPE.title, color: C.accent, fontVariant: ["tabular-nums"],
+    ...TYPE.title, ...TYPE.num, color: C.accent,
     borderRadius: RADIUS.pill, paddingHorizontal: 14, paddingVertical: 6,
-    backgroundColor: "rgba(76,141,255,0.14)", overflow: "hidden",
+    backgroundColor: "rgba(91,141,239,0.14)", overflow: "hidden",
   },
 });

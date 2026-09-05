@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, type ViewStyle } from "react-native";
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { Check, type LucideIcon } from "lucide-react-native";
 import { D, EASE, useReducedMotion } from "../lib/motion";
 import { C, RADIUS, TYPE } from "../lib/theme";
 
@@ -12,7 +13,7 @@ type State = "idle" | "loading" | "done";
  *  Press dips the scale, work shows a spinner, completion shows a tick.
  */
 export function Button({
-  label, onPress, kind = "primary", style, disabled, doneLabel = "Done",
+  label, onPress, kind = "primary", style, disabled, doneLabel = "Done", icon: Glyph,
 }: {
   label: string;
   onPress: () => void | Promise<void>;
@@ -20,6 +21,7 @@ export function Button({
   style?: ViewStyle;
   disabled?: boolean;
   doneLabel?: string;
+  icon?: LucideIcon;
 }) {
   const press = useRef(new Animated.Value(0)).current;
   const [state, setState] = useState<State>("idle");
@@ -47,6 +49,7 @@ export function Button({
 
   const scale = reduced ? 1 : press.interpolate({ inputRange: [0, 1], outputRange: [1, 0.975] });
   const busy = state === "loading";
+  const ink = kind === "primary" ? C.bg : C.text1;
 
   return (
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
@@ -61,11 +64,14 @@ export function Button({
         accessibilityLabel={label}
       >
         {busy ? (
-          <ActivityIndicator color={kind === "primary" ? C.bg : C.text1} />
+          <ActivityIndicator color={ink} />
         ) : (
-          <Text style={[styles.label, kind === "primary" && styles.labelDark]}>
-            {state === "done" ? `✓  ${doneLabel}` : label}
-          </Text>
+          <View style={styles.row}>
+            {state === "done" ? <Check color={ink} size={18} strokeWidth={2.6} /> : Glyph ? <Glyph color={ink} size={18} strokeWidth={2.2} /> : null}
+            <Text style={[styles.label, { color: ink }]}>
+              {state === "done" ? doneLabel : label}
+            </Text>
+          </View>
         )}
       </Pressable>
     </Animated.View>
@@ -77,10 +83,10 @@ const styles = StyleSheet.create({
     minHeight: 56, borderRadius: RADIUS.control, alignItems: "center",
     justifyContent: "center", paddingHorizontal: 20, borderWidth: 1,
   },
+  row: { flexDirection: "row", alignItems: "center", gap: 9 },
   primary: { backgroundColor: C.text1, borderColor: C.text1 },
-  secondary: { backgroundColor: C.surfaceHi, borderColor: C.border },
+  secondary: { backgroundColor: C.surfaceHi, borderColor: C.borderHi },
   danger: { backgroundColor: C.red, borderColor: C.red },
   off: { opacity: 0.45 },
-  label: { ...TYPE.bodyStrong, color: C.text1 },
-  labelDark: { color: C.bg },
+  label: { ...TYPE.bodyStrong },
 });

@@ -16,11 +16,11 @@ const KEY = "queued-reports";
 
 export type Category = "blocked" | "rocks" | "crack" | "water";
 
-export const CATEGORIES: { key: Category; label: string; help: string; icon: string }[] = [
-  { key: "blocked", label: "Road blocked", help: "Nothing can pass right now", icon: "🚧" },
-  { key: "rocks", label: "Falling rocks", help: "Rocks or debris coming down", icon: "🪨" },
-  { key: "crack", label: "Cracks", help: "New cracks in the road or the slope", icon: "🧱" },
-  { key: "water", label: "Water flowing", help: "Water coming out of the hillside", icon: "💧" },
+export const CATEGORIES: { key: Category; label: string; help: string }[] = [
+  { key: "blocked", label: "Road blocked", help: "Nothing can pass right now" },
+  { key: "rocks", label: "Falling rocks", help: "Rocks or debris coming down" },
+  { key: "crack", label: "Cracks", help: "New cracks in the road or the slope" },
+  { key: "water", label: "Water flowing", help: "Water coming out of the hillside" },
 ];
 
 export interface Report {

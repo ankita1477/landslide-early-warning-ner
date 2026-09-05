@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { ArrowRight } from "lucide-react-native";
 import { Logo } from "../components/Logo";
-import { TerrainBackdrop } from "../components/TerrainBackdrop";
+import { Range } from "../illustrations/Range";
 import { Button } from "../components/Button";
 import { C, SPACE, TYPE } from "../lib/theme";
 
@@ -37,11 +38,9 @@ export function Splash({ onEnter }: { onEnter: () => void }) {
   };
   // Movement only, never opacity, for anything the user needs.
   //
-  // The wordmark and the button were fading in from zero. If that animation
-  // does not run — a dropped frame loop, a paused timeline, a device that never
-  // schedules it — the only way into the app is invisible and the person is
-  // stranded on a splash screen. Sliding into place degrades to simply being
-  // in place, which is the correct failure.
+  // If the entrance animation does not run — a dropped frame loop, a paused
+  // timeline, a device that never schedules it — the only way into the app must
+  // still be visible. Sliding into place degrades to simply being in place.
   const textStyle = {
     transform: [
       { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
@@ -51,10 +50,10 @@ export function Splash({ onEnter }: { onEnter: () => void }) {
   return (
     <View style={styles.screen}>
       <LinearGradient
-        colors={["#0F1730", "#0B1020", "#080C18"]}
+        colors={["#111A30", "#0A0D14", "#0A0D14"]}
         style={StyleSheet.absoluteFill}
       />
-      <TerrainBackdrop />
+      <Range />
 
       <View style={styles.centre}>
         <Animated.View style={markStyle}>
@@ -68,7 +67,7 @@ export function Splash({ onEnter }: { onEnter: () => void }) {
       </View>
 
       <Animated.View style={[styles.bottom, textStyle]}>
-        <Button label="Check safety" onPress={onEnter} />
+        <Button label="Check safety" onPress={onEnter} icon={ArrowRight} />
         <Text style={styles.footnote}>
           Landslide early warning for the North Eastern Region
         </Text>
@@ -79,10 +78,10 @@ export function Splash({ onEnter }: { onEnter: () => void }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  centre: { flex: 1, alignItems: "center", justifyContent: "center", gap: SPACE.lg },
+  centre: { flex: 1, alignItems: "center", justifyContent: "center", gap: SPACE.lg, paddingBottom: 40 },
   words: { alignItems: "center", gap: SPACE.xs },
   brand: {
-    ...TYPE.hero, fontSize: 33, color: C.text1, letterSpacing: 2.5, fontWeight: "800",
+    ...TYPE.hero, fontSize: 33, color: C.cream, letterSpacing: 2.5, fontWeight: "800",
   },
   brandThin: { color: C.accent, fontWeight: "300" },
   tagline: { ...TYPE.body, fontSize: 15.5, color: C.text2, letterSpacing: 0.3 },

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Chip } from "react-native-paper";
+import { Check, Flag, MapPin } from "lucide-react-native";
 import { api, type SegmentSummary } from "../lib/api";
 import { Card } from "../components/Card";
+import { TIER_ICON } from "../components/Icons";
 import { C, RADIUS, SPACE, TIER_COLOR, TIER_RANK, TIER_WORD, TYPE, type Tier } from "../lib/theme";
 import { ACTION } from "../lib/explain";
 import { D, EASE, useReducedMotion } from "../lib/motion";
@@ -65,6 +68,7 @@ export function Route() {
     (acc, s) => (TIER_RANK[s.tier as Tier] > TIER_RANK[acc] ? (s.tier as Tier) : acc),
     "green",
   );
+  const Worst = TIER_ICON[worst];
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -73,39 +77,66 @@ export function Route() {
       {busy && <Checking stage={stage} />}
 
       <Card>
-        <Text style={styles.pickLabel}>Starting from</Text>
+        <View style={styles.pickHead}>
+          <MapPin color={C.text3} size={14} />
+          <Text style={styles.pickLabel}>Starting from</Text>
+        </View>
         <Picker stops={STOPS} value={from} onChange={setFrom} />
         <View style={styles.gap} />
-        <Text style={styles.pickLabel}>Going to</Text>
+        <View style={styles.pickHead}>
+          <Flag color={C.text3} size={14} />
+          <Text style={styles.pickLabel}>Going to</Text>
+        </View>
         <Picker stops={STOPS} value={to} onChange={setTo} />
       </Card>
 
       {!busy && onRoute.length > 0 && (
-        <Card tint={worst === "green" ? "rgba(34,197,94,0.12)" : `${TIER_COLOR[worst]}22`}>
-          <Text style={[styles.verdictWord, { color: TIER_COLOR[worst] }]}>
-            {TIER_WORD[worst]}
-          </Text>
+        <Card tint={`${TIER_COLOR[worst]}1A`} style={{ borderColor: `${TIER_COLOR[worst]}55` }}>
+          <View style={styles.verdictHead}>
+            <Worst color={TIER_COLOR[worst]} size={18} strokeWidth={2.3} />
+            <Text style={[styles.verdictWord, { color: TIER_COLOR[worst] }]}>{TIER_WORD[worst]}</Text>
+          </View>
           <Text style={styles.verdict}>
             {risky.length === 0
               ? "No risky sections on this route today."
               : `${risky.length} section${risky.length > 1 ? "s" : ""} need care between ${from.name} and ${to.name}.`}
           </Text>
           <Text style={styles.verdictAction}>{ACTION[worst].action}</Text>
+
+          {/* The journey as a strip: where on the road the colour changes. */}
+          <View style={styles.strip} accessibilityLabel="Risk along the route, start to finish">
+            {onRoute.map((s) => (
+              <View
+                key={s.id}
+                style={[
+                  styles.stripSeg,
+                  { backgroundColor: TIER_COLOR[s.tier as Tier], opacity: TIER_RANK[s.tier as Tier] >= 2 ? 1 : 0.55 },
+                ]}
+              />
+            ))}
+          </View>
+          <View style={styles.stripEnds}>
+            <Text style={styles.stripEnd}>{Math.min(from.km, to.km) === from.km ? from.name : to.name}</Text>
+            <Text style={styles.stripEnd}>{Math.min(from.km, to.km) === from.km ? to.name : from.name}</Text>
+          </View>
         </Card>
       )}
 
       {risky.length > 0 && (
         <View style={styles.list}>
           <Text style={styles.listHead}>Sections to watch</Text>
-          {risky.map((s) => (
-            <View key={s.id} style={styles.row}>
-              <View style={[styles.bar, { backgroundColor: TIER_COLOR[s.tier as Tier] }]} />
-              <Text style={styles.rowKm}>km {s.chainage_km.toFixed(0)}</Text>
-              <Text style={[styles.rowWord, { color: TIER_COLOR[s.tier as Tier] }]}>
-                {TIER_WORD[s.tier as Tier]}
-              </Text>
-            </View>
-          ))}
+          {risky.map((s) => {
+            const t = s.tier as Tier;
+            const Glyph = TIER_ICON[t];
+            return (
+              <View key={s.id} style={styles.row}>
+                <View style={[styles.bar, { backgroundColor: TIER_COLOR[t] }]} />
+                <Text style={styles.rowKm}>km {s.chainage_km.toFixed(0)}</Text>
+                <Glyph color={TIER_COLOR[t]} size={16} strokeWidth={2.3} />
+                <Text style={[styles.rowWord, { color: TIER_COLOR[t] }]}>{TIER_WORD[t]}</Text>
+              </View>
+            );
+          })}
         </View>
       )}
 
@@ -160,7 +191,7 @@ function CheckRow({ label, done, active }: { label: string; done: boolean; activ
     <Animated.View style={[styles.check, { opacity: fade }]}>
       <View style={styles.checkMark}>
         {done ? (
-          <Text style={styles.tick}>✓</Text>
+          <Check color={C.green} size={18} strokeWidth={2.6} />
         ) : active ? (
           <ActivityIndicator size="small" color={C.accent} />
         ) : (
@@ -182,15 +213,18 @@ function Picker({ stops, value, onChange }: {
       {stops.map((stop) => {
         const on = stop.name === value.name;
         return (
-          <Pressable
+          <Chip
             key={stop.name}
+            mode="outlined"
+            selected={on}
+            showSelectedCheck={false}
             onPress={() => onChange(stop)}
             style={[styles.chip, on && styles.chipOn]}
-            accessibilityRole="radio"
+            textStyle={[styles.chipText, on && styles.chipTextOn]}
             accessibilityState={{ selected: on }}
           >
-            <Text style={[styles.chipText, on && styles.chipTextOn]}>{stop.name}</Text>
-          </Pressable>
+            {stop.name}
+          </Chip>
         );
       })}
     </ScrollView>
@@ -198,40 +232,42 @@ function Picker({ stops, value, onChange }: {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.bg },
+  screen: { flex: 1 },
   content: { padding: SPACE.md, gap: SPACE.md, paddingBottom: SPACE.xl },
   h1: { ...TYPE.hero, fontSize: 28, color: C.text1 },
-  pickLabel: { ...TYPE.label, color: C.text3, marginBottom: SPACE.xs },
+  pickHead: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: SPACE.sm },
+  pickLabel: { ...TYPE.eyebrow, color: C.text3 },
   picker: { flexGrow: 0 },
   gap: { height: SPACE.md },
-  chip: {
-    paddingHorizontal: 16, paddingVertical: 12, borderRadius: RADIUS.pill,
-    backgroundColor: C.surfaceHi, borderWidth: 1, borderColor: C.border, marginRight: 8,
-    minHeight: 46, justifyContent: "center",
-  },
+  chip: { marginRight: 8, backgroundColor: C.surfaceHi, borderColor: C.border, minHeight: 42, justifyContent: "center" },
   chipOn: { backgroundColor: C.text1, borderColor: C.text1 },
   chipText: { ...TYPE.bodyStrong, fontSize: 15, color: C.text2 },
   chipTextOn: { color: C.bg },
-  verdictWord: { ...TYPE.micro, fontSize: 12, marginBottom: 6 },
+  verdictHead: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  verdictWord: { ...TYPE.eyebrow },
   verdict: { ...TYPE.title, color: C.text1, marginBottom: 6 },
   verdictAction: { ...TYPE.body, color: C.text2 },
+  strip: {
+    flexDirection: "row", height: 10, borderRadius: 5, overflow: "hidden",
+    marginTop: SPACE.md, gap: 1, backgroundColor: C.surfaceHi,
+  },
+  stripSeg: { flex: 1 },
+  stripEnds: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
+  stripEnd: { fontSize: 12, color: C.text3, fontWeight: "600" },
   list: { gap: SPACE.xs },
-  listHead: { ...TYPE.label, color: C.text3, marginBottom: SPACE.xs },
+  listHead: { ...TYPE.eyebrow, color: C.text3, marginBottom: SPACE.xs },
   row: {
-    flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14,
+    flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 14,
     paddingHorizontal: SPACE.md, backgroundColor: C.surface,
     borderRadius: RADIUS.control, borderWidth: 1, borderColor: C.border,
   },
-  bar: { width: 5, height: 30, borderRadius: 3 },
-  rowKm: { ...TYPE.bodyStrong, color: C.text1, flex: 1 },
-  rowWord: { ...TYPE.micro, fontSize: 11 },
+  bar: { width: 4, height: 28, borderRadius: 2, marginRight: 4 },
+  rowKm: { ...TYPE.bodyStrong, ...TYPE.num, color: C.text1, flex: 1 },
+  rowWord: { ...TYPE.eyebrow, fontSize: 10.5 },
   empty: { ...TYPE.body, color: C.text2 },
   check: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 9 },
   checkMark: { width: 22, alignItems: "center" },
-  tick: { fontSize: 16, color: C.green, fontWeight: "700" },
-  pending: {
-    width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.text3,
-  },
+  pending: { width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.text3 },
   checkText: { ...TYPE.body, fontSize: 15.5, color: C.text2 },
   checkDone: { color: C.text1 },
 });

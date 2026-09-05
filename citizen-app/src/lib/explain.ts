@@ -15,8 +15,11 @@ export interface Factors {
   exposure: number;
 }
 
+export type ReasonIcon =
+  | "ok" | "watched" | "rain" | "drizzle" | "slope" | "moving" | "homes";
+
 export interface Reason {
-  icon: string;
+  icon: ReasonIcon;
   text: string;
 }
 
@@ -34,33 +37,33 @@ export function reasons(factors: Factors, tier?: Tier): Reason[] {
   // is one they stop believing.
   if (tier === "green") {
     return [
-      { icon: "✅", text: "Rainfall here is normal for the season" },
-      { icon: "🛰️", text: "This stretch is checked again every day" },
+      { icon: "ok", text: "Rainfall here is normal for the season" },
+      { icon: "watched", text: "This stretch is checked again every day" },
     ];
   }
 
   const out: Reason[] = [];
 
   if (factors.trigger_probability >= RAIN_HIGH) {
-    out.push({ icon: "🌧️", text: "Heavy rain has fallen here recently" });
+    out.push({ icon: "rain", text: "Heavy rain has fallen here recently" });
   } else if (factors.trigger_probability >= RAIN_SOME) {
-    out.push({ icon: "🌦️", text: "Steady rain over the past week" });
+    out.push({ icon: "drizzle", text: "Steady rain over the past week" });
   }
 
   if (factors.susceptibility >= SLOPE_WEAK) {
-    out.push({ icon: "⛰️", text: "The hillside here is naturally weak" });
+    out.push({ icon: "slope", text: "The hillside here is naturally weak" });
   }
 
   if (factors.deformation_modifier > 1.0) {
-    out.push({ icon: "📡", text: "Satellites show this slope is already moving" });
+    out.push({ icon: "moving", text: "Satellites show this slope is already moving" });
   }
 
   if (factors.exposure >= PEOPLE_MANY) {
-    out.push({ icon: "🏘️", text: "Homes and villages sit close to this stretch" });
+    out.push({ icon: "homes", text: "Homes and villages sit close to this stretch" });
   }
 
   if (out.length === 0) {
-    out.push({ icon: "✅", text: "Nothing unusual is affecting this stretch" });
+    out.push({ icon: "ok", text: "Nothing unusual is affecting this stretch" });
   }
   return out;
 }

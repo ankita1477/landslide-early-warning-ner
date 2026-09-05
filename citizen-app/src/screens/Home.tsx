@@ -1,22 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Location from "expo-location";
+import { Camera, LifeBuoy, Map, Route as RouteIcon, WifiOff, type LucideIcon } from "lucide-react-native";
 import { api, ageLabel, type Cached, type PointRisk, type SegmentDetail } from "../lib/api";
 import { RiskHero } from "../components/RiskHero";
 import { WhyCard } from "../components/WhyCard";
-import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { RiskSkeleton } from "../components/Skeleton";
 import { record } from "../lib/history";
 import { headline } from "../lib/explain";
-import { C, SPACE, TYPE, type Tier } from "../lib/theme";
+import { C, RADIUS, SPACE, TYPE, type Tier } from "../lib/theme";
 
 const SEVOKE = { lat: 26.9, lon: 88.47 };
 
-export function Home({ onRoute, onMap, onReport, onEscalation }: {
+export function Home({ onRoute, onMap, onReport, onSafety, onEscalation }: {
   onRoute: () => void;
   onMap: () => void;
   onReport: () => void;
+  onSafety: () => void;
   onEscalation: (w: { tier: Tier; km: number; reason: string }) => void;
 }) {
   const [point, setPoint] = useState<Cached<PointRisk> | null>(null);
@@ -86,30 +87,41 @@ export function Home({ onRoute, onMap, onReport, onEscalation }: {
           />
 
           {point.stale && (
-            <Card tint="rgba(234,179,8,0.12)">
-              <Text style={styles.staleTitle}>Saved reading</Text>
-              <Text style={styles.staleBody}>
-                You are offline. This is from {ageLabel(point.fetchedAt)} and conditions
-                may have changed. Pull down to refresh.
-              </Text>
+            <Card tint="rgba(234,179,8,0.10)" style={styles.notice}>
+              <WifiOff color={C.yellow} size={20} />
+              <View style={styles.noticeText}>
+                <Text style={styles.staleTitle}>Saved reading</Text>
+                <Text style={styles.staleBody}>
+                  You are offline. This is from {ageLabel(point.fetchedAt)} and conditions
+                  may have changed. Pull down to refresh.
+                </Text>
+              </View>
             </Card>
           )}
 
           {detail && <WhyCard factors={detail.components} tier={tier} />}
-
-          <Button label="See the map" onPress={onMap} kind="secondary" />
-          <Button label="Report a problem" onPress={onReport} kind="secondary" />
         </>
       )}
 
       {failed && !point && (
-        <Card tint="rgba(239,68,68,0.12)">
-          <Text style={styles.staleTitle}>Cannot check right now</Text>
-          <Text style={styles.staleBody}>
-            No connection and nothing saved yet. Pull down to try again.
-          </Text>
+        <Card tint="rgba(239,68,68,0.10)" style={styles.notice}>
+          <WifiOff color={C.red} size={20} />
+          <View style={styles.noticeText}>
+            <Text style={styles.staleTitle}>Cannot check right now</Text>
+            <Text style={styles.staleBody}>
+              No connection and nothing saved yet. Pull down to try again.
+            </Text>
+          </View>
         </Card>
       )}
+
+      <Text style={styles.eyebrow}>Quick actions</Text>
+      <View style={styles.grid}>
+        <Action icon={RouteIcon} label="Check a route" note="Sevoke to Gangtok and beyond" onPress={onRoute} />
+        <Action icon={Map} label="See the road" note="Every kilometre, coloured" onPress={onMap} />
+        <Action icon={Camera} label="Report a problem" note="Warn the people behind you" onPress={onReport} />
+        <Action icon={LifeBuoy} label="Safety guide" note="Before, during and after" onPress={onSafety} />
+      </View>
 
       <View style={styles.note}>
         <Text style={styles.noteText}>
@@ -121,11 +133,45 @@ export function Home({ onRoute, onMap, onReport, onEscalation }: {
   );
 }
 
+function Action({ icon: Glyph, label, note, onPress }: {
+  icon: LucideIcon; label: string; note: string; onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View style={styles.actionGlyph}>
+        <Glyph color={C.text1} size={22} strokeWidth={1.9} />
+      </View>
+      <Text style={styles.actionLabel}>{label}</Text>
+      <Text style={styles.actionNote}>{note}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.bg },
+  screen: { flex: 1 },
   content: { padding: SPACE.md, gap: SPACE.md, paddingBottom: SPACE.xl },
-  staleTitle: { ...TYPE.bodyStrong, color: C.text1, marginBottom: 4 },
-  staleBody: { ...TYPE.body, fontSize: 14.5, color: C.text2 },
+  notice: { flexDirection: "row", gap: SPACE.md, alignItems: "flex-start" },
+  noticeText: { flex: 1 },
+  staleTitle: { ...TYPE.bodyStrong, color: C.text1, marginBottom: 2 },
+  staleBody: { ...TYPE.body, fontSize: 14.5, lineHeight: 21, color: C.text2 },
+  eyebrow: { ...TYPE.eyebrow, color: C.text3, marginTop: SPACE.xs, marginBottom: -SPACE.xs },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.sm },
+  action: {
+    width: "48%", flexGrow: 1, backgroundColor: C.surface, borderRadius: RADIUS.card,
+    borderWidth: 1, borderColor: C.border, padding: SPACE.md, gap: 3, minHeight: 124,
+  },
+  actionPressed: { backgroundColor: C.surfaceHi, borderColor: C.borderHi },
+  actionGlyph: {
+    width: 40, height: 40, borderRadius: 12, backgroundColor: C.surfaceHi,
+    alignItems: "center", justifyContent: "center", marginBottom: SPACE.sm,
+  },
+  actionLabel: { ...TYPE.bodyStrong, fontSize: 15.5, lineHeight: 20, color: C.text1 },
+  actionNote: { fontSize: 12.5, lineHeight: 17, color: C.text3 },
   note: { marginTop: SPACE.sm },
   noteText: { fontSize: 12.5, lineHeight: 19, color: C.text3 },
 });

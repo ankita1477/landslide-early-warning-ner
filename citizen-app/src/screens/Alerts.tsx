@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Card } from "../components/Card";
+import { IconTile } from "../components/Icons";
+import { TIER_ICON } from "../components/Icons";
 import { ListSkeleton } from "../components/Skeleton";
+import { Quiet } from "../illustrations/Quiet";
 import { history, type WarningEntry } from "../lib/history";
-import { C, RADIUS, SPACE, TIER_COLOR, TIER_WORD, TYPE, type Tier } from "../lib/theme";
+import { C, SPACE, TIER_COLOR, TIER_WORD, TYPE, type Tier } from "../lib/theme";
 
 /** Every warning this phone has shown, newest first.
  *
@@ -27,27 +30,30 @@ export function Alerts() {
       {past === null && <ListSkeleton rows={4} />}
 
       {past?.length === 0 && (
-        <Card>
-          <Text style={styles.empty}>
+        <Card style={styles.empty}>
+          <Quiet size={128} />
+          <Text style={styles.emptyTitle}>All quiet</Text>
+          <Text style={styles.emptyBody}>
             No alerts yet. Keep the app installed and it will record each change
             for the road you travel on.
           </Text>
         </Card>
       )}
 
-      {past?.map((entry) => (
-        <Card key={entry.at} style={styles.row}>
-          <View style={[styles.bar, { backgroundColor: TIER_COLOR[entry.tier as Tier] }]} />
-          <View style={styles.text}>
-            <Text style={[styles.word, { color: TIER_COLOR[entry.tier as Tier] }]}>
-              {TIER_WORD[entry.tier as Tier]}
-            </Text>
-            <Text style={styles.place}>NH-10 · km {entry.km.toFixed(0)}</Text>
-            <Text style={styles.reason}>{entry.reason}</Text>
-          </View>
-          <Text style={styles.when}>{when(entry.at)}</Text>
-        </Card>
-      ))}
+      {past?.map((entry) => {
+        const t = entry.tier as Tier;
+        return (
+          <Card key={entry.at} style={styles.row}>
+            <IconTile icon={TIER_ICON[t]} tier={t} />
+            <View style={styles.text}>
+              <Text style={[styles.word, { color: TIER_COLOR[t] }]}>{TIER_WORD[t]}</Text>
+              <Text style={styles.place}>NH-10 · km {entry.km.toFixed(0)}</Text>
+              <Text style={styles.reason}>{entry.reason}</Text>
+            </View>
+            <Text style={styles.when}>{when(entry.at)}</Text>
+          </Card>
+        );
+      })}
     </ScrollView>
   );
 }
@@ -62,16 +68,17 @@ function when(iso: string): string {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.bg },
+  screen: { flex: 1 },
   content: { padding: SPACE.md, gap: SPACE.sm, paddingBottom: SPACE.xl },
   h1: { ...TYPE.hero, fontSize: 28, color: C.text1 },
   sub: { ...TYPE.body, color: C.text2, marginBottom: SPACE.xs },
   row: { flexDirection: "row", alignItems: "center", gap: SPACE.md },
-  bar: { width: 5, height: 46, borderRadius: 3 },
   text: { flex: 1, gap: 1 },
-  word: { ...TYPE.micro, fontSize: 10.5 },
+  word: { ...TYPE.eyebrow, fontSize: 10.5 },
   place: { ...TYPE.bodyStrong, fontSize: 15.5, color: C.text1 },
   reason: { fontSize: 13, lineHeight: 18, color: C.text3 },
-  when: { fontSize: 12, color: C.text3 },
-  empty: { ...TYPE.body, color: C.text2 },
+  when: { fontSize: 12, color: C.text3, ...TYPE.num },
+  empty: { alignItems: "center", paddingVertical: SPACE.xl, gap: SPACE.xs },
+  emptyTitle: { ...TYPE.title, color: C.text1, marginTop: SPACE.sm },
+  emptyBody: { ...TYPE.body, fontSize: 15, color: C.text2, textAlign: "center", maxWidth: 300 },
 });

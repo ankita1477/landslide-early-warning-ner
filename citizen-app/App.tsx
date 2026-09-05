@@ -1,5 +1,8 @@
 import { useCallback, useState } from "react";
-import { Platform, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StatusBar, StyleSheet, Text, View } from "react-native";
+import { PaperProvider } from "react-native-paper";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { ArrowLeft, Bell, ChevronDown, ChevronUp, House, Map, Route as RouteIcon, User, X, type LucideIcon } from "lucide-react-native";
 import { Home } from "./src/screens/Home";
 import { Route } from "./src/screens/Route";
 import { MapScreen } from "./src/screens/MapScreen";
@@ -10,17 +13,30 @@ import { Profile } from "./src/screens/Profile";
 import { Splash } from "./src/screens/Splash";
 import { AlertBanner } from "./src/components/AlertBanner";
 import { ContourBackdrop } from "./src/components/ContourBackdrop";
+import { Logo } from "./src/components/Logo";
 import { Screen } from "./src/components/Screen";
 import { TabBar, type Tab } from "./src/components/TabBar";
+import { paperTheme } from "./src/lib/paper";
 import { C, SPACE, TYPE, type Tier } from "./src/lib/theme";
 
 const TABS: Tab[] = [
-  { key: "home", label: "Home", icon: "🏠" },
-  { key: "map", label: "Map", icon: "🗺️" },
-  { key: "route", label: "Route", icon: "🧭" },
-  { key: "alerts", label: "Alerts", icon: "🔔" },
-  { key: "profile", label: "Profile", icon: "👤" },
+  { key: "home", label: "Home", icon: House },
+  { key: "map", label: "Map", icon: Map },
+  { key: "route", label: "Route", icon: RouteIcon },
+  { key: "alerts", label: "Alerts", icon: Bell },
+  { key: "profile", label: "Profile", icon: User },
 ];
+
+/** Paper asks for icons by Material name; these are the only ones it needs
+ *  here, drawn from the same set as the rest of the app so nothing looks
+ *  borrowed. */
+const PAPER_ICONS: Record<string, LucideIcon> = {
+  "chevron-up": ChevronUp, "chevron-down": ChevronDown, close: X,
+};
+const paperIcon = ({ name, color, size }: { name: string; color?: string; size: number }) => {
+  const Glyph = PAPER_ICONS[name] ?? X;
+  return <Glyph color={color ?? C.text2} size={size} strokeWidth={2} />;
+};
 
 /** Report and Safety are pushed over the tabs rather than living in them.
  *  Both are things a person goes to deliberately, and neither is worth a
@@ -30,6 +46,16 @@ type Sub = "report" | "safety" | null;
 interface Warning { tier: Tier; km: number; reason: string }
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <PaperProvider theme={paperTheme} settings={{ icon: paperIcon }}>
+        <Shell />
+      </PaperProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function Shell() {
   const [tab, setTab] = useState("home");
   const [sub, setSub] = useState<Sub>(null);
   const [entered, setEntered] = useState(false);
@@ -46,7 +72,7 @@ export default function App() {
   const title = sub === "report" ? "Report a problem" : sub === "safety" ? "Safety" : null;
 
   return (
-    <SafeAreaView style={styles.app}>
+    <SafeAreaView style={styles.app} edges={["top", "left", "right"]}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
       <ContourBackdrop />
 
@@ -57,15 +83,19 @@ export default function App() {
             style={styles.back}
             accessibilityRole="button"
             accessibilityLabel="Back"
+            hitSlop={8}
           >
-            <Text style={styles.backArrow}>←</Text>
+            <ArrowLeft color={C.text1} size={24} />
             <Text style={styles.backText}>{title}</Text>
           </Pressable>
         ) : (
-          <>
-            <Text style={styles.brand}>Landsafe NER</Text>
-            <Text style={styles.corridor}>NH-10 · Sevoke to Gangtok</Text>
-          </>
+          <View style={styles.brandRow}>
+            <Logo size={30} />
+            <View>
+              <Text style={styles.brand}>Landsafe NER</Text>
+              <Text style={styles.corridor}>NH-10 · Sevoke to Gangtok</Text>
+            </View>
+          </View>
         )}
       </View>
 
@@ -76,6 +106,7 @@ export default function App() {
               onRoute={() => setTab("route")}
               onMap={() => setTab("map")}
               onReport={() => setSub("report")}
+              onSafety={() => setSub("safety")}
               onEscalation={onEscalation}
             />
           </Screen>
@@ -115,18 +146,17 @@ export default function App() {
 const styles = StyleSheet.create({
   app: {
     flex: 1, backgroundColor: C.bg,
-    // Android has no safe-area inset, so the header needs its own breathing room.
-    paddingTop: Platform.OS === "android" ? 28 : 0,
+    paddingTop: Platform.OS === "android" ? 6 : 0,
   },
   header: {
     paddingHorizontal: SPACE.md, paddingTop: SPACE.sm, paddingBottom: SPACE.sm,
-    borderBottomWidth: 1, borderBottomColor: C.border, minHeight: 56,
+    borderBottomWidth: 1, borderBottomColor: C.border, minHeight: 58,
     justifyContent: "center",
   },
-  brand: { ...TYPE.title, fontSize: 20, color: C.text1, letterSpacing: -0.3 },
-  corridor: { fontSize: 12.5, color: C.text3, marginTop: 2 },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  brand: { ...TYPE.title, fontSize: 18, color: C.text1 },
+  corridor: { fontSize: 12, color: C.text3, marginTop: 1 },
   back: { flexDirection: "row", alignItems: "center", gap: 12 },
-  backArrow: { fontSize: 24, color: C.text1 },
   backText: { ...TYPE.title, fontSize: 19, color: C.text1 },
   body: { flex: 1 },
 });

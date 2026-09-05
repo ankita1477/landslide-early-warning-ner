@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { Card } from "./Card";
-import { C, SPACE, TYPE } from "../lib/theme";
+import { Reason } from "./Icons";
+import { C, SPACE, TIER_COLOR, TYPE } from "../lib/theme";
 import { reasons, type Factors } from "../lib/explain";
 import type { Tier } from "../lib/theme";
 
@@ -8,15 +9,16 @@ import type { Tier } from "../lib/theme";
  *  A warning without a reason is one people learn to dismiss. */
 export function WhyCard({ factors, tier }: { factors: Factors; tier?: Tier }) {
   const items = reasons(factors, tier);
+  const ink = tier ? TIER_COLOR[tier] : C.text2;
   return (
     <Card>
-      <Text style={styles.heading}>
-        {tier === "green" ? "Why is it safe?" : "Why am I seeing this?"}
-      </Text>
+      <Text style={styles.eyebrow}>{tier === "green" ? "Why it is safe" : "Why you are seeing this"}</Text>
       <View style={styles.list}>
-        {items.map((item) => (
-          <View key={item.text} style={styles.row}>
-            <Text style={styles.icon}>{item.icon}</Text>
+        {items.map((item, i) => (
+          <View key={item.text} style={[styles.row, i > 0 && styles.rowBorder]}>
+            <View style={styles.glyph}>
+              <Reason icon={item.icon} color={ink} />
+            </View>
             <Text style={styles.text}>{item.text}</Text>
           </View>
         ))}
@@ -26,9 +28,10 @@ export function WhyCard({ factors, tier }: { factors: Factors; tier?: Tier }) {
 }
 
 const styles = StyleSheet.create({
-  heading: { ...TYPE.title, color: C.text1, marginBottom: SPACE.sm },
-  list: { gap: SPACE.sm },
-  row: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  icon: { fontSize: 20, width: 26 },
-  text: { ...TYPE.body, color: C.text2, flex: 1 },
+  eyebrow: { ...TYPE.eyebrow, color: C.text3, marginBottom: SPACE.xs },
+  list: {},
+  row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 12 },
+  rowBorder: { borderTopWidth: 1, borderTopColor: C.border },
+  glyph: { width: 24, alignItems: "center" },
+  text: { ...TYPE.body, color: C.text1, flex: 1 },
 });

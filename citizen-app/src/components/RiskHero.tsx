@@ -1,8 +1,11 @@
 import { useEffect, useRef } from "react";
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ArrowRight, Clock3, MapPin } from "lucide-react-native";
 import { C, RADIUS, SPACE, TIER_COLOR, TIER_WASH, TIER_WORD, TYPE, type Tier } from "../lib/theme";
 import { ACTION, SITUATION } from "../lib/explain";
 import { PULSE, useReducedMotion } from "../lib/motion";
+import { Hillside } from "../illustrations/Hillside";
+import { TIER_ICON } from "./Icons";
 
 /** The whole point of the app in one card: what the risk is, and what to do.
  *  The band is spoken as a word — a colour alone is unreadable to a colour-blind
@@ -15,6 +18,8 @@ export function RiskHero({ tier, place, subtitle, updated, onRoute }: {
   const action = ACTION[tier];
   const situation = SITUATION[tier];
   const reduced = useReducedMotion();
+  const { width } = useWindowDimensions();
+  const Glyph = TIER_ICON[tier];
 
   // The band sets how insistent the beat is: green barely moves, red is quick
   // but never flashes. A strobing emergency screen is harder to read, and
@@ -38,68 +43,84 @@ export function RiskHero({ tier, place, subtitle, updated, onRoute }: {
 
   return (
     <View
-      style={[styles.card, { backgroundColor: TIER_WASH[tier], borderColor: TIER_COLOR[tier] }]}
+      style={[styles.card, { backgroundColor: TIER_WASH[tier], borderColor: `${TIER_COLOR[tier]}66` }]}
       accessibilityRole="summary"
       accessibilityLabel={`${TIER_WORD[tier]}. ${situation.headline}. ${situation.sub}. ${action.action}`}
     >
-      <View style={styles.row}>
-        <View style={styles.dotWrap}>
-          <Animated.View
-            style={[
-              styles.halo,
-              {
-                backgroundColor: TIER_COLOR[tier],
-                opacity: pulse.interpolate({ inputRange: [0.3, 1], outputRange: [0.42, 0] }),
-                transform: [
-                  { scale: pulse.interpolate({ inputRange: [0.3, 1], outputRange: [2.1, 1] }) },
-                ],
-              },
-            ]}
-          />
-          <Animated.View
-            style={[styles.dot, { backgroundColor: TIER_COLOR[tier], opacity: pulse }]}
-          />
+      <View style={styles.art}>
+        <Hillside tier={tier} width={Math.min(width - SPACE.md * 2 - 2, 420)} />
+        <View style={styles.badge}>
+          <View style={styles.dotWrap}>
+            <Animated.View
+              style={[
+                styles.halo,
+                {
+                  backgroundColor: TIER_COLOR[tier],
+                  opacity: pulse.interpolate({ inputRange: [0.3, 1], outputRange: [0.42, 0] }),
+                  transform: [{ scale: pulse.interpolate({ inputRange: [0.3, 1], outputRange: [2.2, 1] }) }],
+                },
+              ]}
+            />
+            <Animated.View style={[styles.dot, { backgroundColor: TIER_COLOR[tier], opacity: pulse }]} />
+          </View>
+          <Glyph color={TIER_COLOR[tier]} size={15} strokeWidth={2.4} />
+          <Text style={[styles.word, { color: TIER_COLOR[tier] }]}>{TIER_WORD[tier]}</Text>
         </View>
-        <Text style={[styles.word, { color: TIER_COLOR[tier] }]}>{TIER_WORD[tier]}</Text>
       </View>
 
-      <Text style={styles.label}>{situation.headline}</Text>
-      <Text style={styles.action}>{situation.sub}</Text>
+      <View style={styles.text}>
+        <Text style={styles.label}>{situation.headline}</Text>
+        <Text style={styles.action}>{situation.sub}</Text>
 
-      <View style={styles.footer}>
-        <Text style={styles.place}>{place}</Text>
-        {subtitle ? <Text style={styles.sub}>{subtitle}</Text> : null}
-        {updated ? <Text style={styles.sub}>Updated {updated}</Text> : null}
+        <View style={styles.meta}>
+          <View style={styles.metaRow}>
+            <MapPin color={C.text3} size={14} />
+            <Text style={styles.place}>{place}</Text>
+          </View>
+          {subtitle ? <Text style={styles.sub}>{subtitle}</Text> : null}
+          {updated ? (
+            <View style={styles.metaRow}>
+              <Clock3 color={C.text3} size={13} />
+              <Text style={styles.sub}>Updated {updated}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {onRoute && (
+          <Pressable onPress={onRoute} style={styles.cta} accessibilityRole="button">
+            <Text style={styles.ctaText}>Check my route</Text>
+            <ArrowRight color={C.bg} size={19} strokeWidth={2.4} />
+          </Pressable>
+        )}
       </View>
-
-      {onRoute && (
-        <Pressable onPress={onRoute} style={styles.cta} accessibilityRole="button">
-          <Text style={styles.ctaText}>Check my route</Text>
-          <Text style={styles.ctaArrow}>→</Text>
-        </Pressable>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: RADIUS.card, borderWidth: 2, padding: SPACE.lg, gap: SPACE.sm },
-  row: { flexDirection: "row", alignItems: "center", gap: 10 },
-  dotWrap: { width: 14, height: 14, alignItems: "center", justifyContent: "center" },
-  halo: { position: "absolute", width: 14, height: 14, borderRadius: 7 },
-  dot: { width: 14, height: 14, borderRadius: 7 },
-  word: { ...TYPE.micro, fontSize: 13 },
-  label: { ...TYPE.hero, color: C.text1, marginTop: 2 },
-  action: { ...TYPE.body, color: C.text1, opacity: 0.92 },
-  footer: { marginTop: SPACE.sm, gap: 2 },
+  card: { borderRadius: RADIUS.card, borderWidth: 1, overflow: "hidden" },
+  art: { alignItems: "center", marginTop: -6 },
+  badge: {
+    position: "absolute", top: SPACE.md, left: SPACE.md,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "rgba(10,13,20,0.72)", borderRadius: RADIUS.pill,
+    paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor: C.border,
+  },
+  dotWrap: { width: 10, height: 10, alignItems: "center", justifyContent: "center" },
+  halo: { position: "absolute", width: 10, height: 10, borderRadius: 5 },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  word: { ...TYPE.eyebrow },
+  text: { paddingHorizontal: SPACE.lg, paddingBottom: SPACE.lg, marginTop: -SPACE.sm, gap: SPACE.xs },
+  label: { ...TYPE.hero, color: C.text1 },
+  action: { ...TYPE.body, color: C.text2 },
+  meta: { marginTop: SPACE.sm, gap: 4 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   place: { ...TYPE.label, color: C.text2 },
   sub: { fontSize: 12.5, color: C.text3 },
   cta: {
     marginTop: SPACE.md, minHeight: 54, borderRadius: RADIUS.control,
-    backgroundColor: "rgba(255,255,255,0.10)", borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)", flexDirection: "row",
+    backgroundColor: C.text1, flexDirection: "row",
     alignItems: "center", justifyContent: "center", gap: 10,
   },
-  ctaText: { ...TYPE.bodyStrong, color: C.text1 },
-  ctaArrow: { ...TYPE.bodyStrong, color: C.text1, fontSize: 18 },
+  ctaText: { ...TYPE.bodyStrong, color: C.bg },
 });
