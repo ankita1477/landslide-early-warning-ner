@@ -55,7 +55,9 @@ export function Route() {
     const low = Math.min(from.km, to.km);
     const high = Math.max(from.km, to.km);
     return segments
-      .filter((s) => s.chainage_km >= low && s.chainage_km <= high)
+      // A segment starts at its chainage and runs about a kilometre on, so it is
+      // on the journey if any of it overlaps — including the one you start in.
+      .filter((s) => s.chainage_km < high && s.chainage_km + 1 > low)
       .sort((a, b) => a.chainage_km - b.chainage_km);
   }, [segments, from, to]);
 

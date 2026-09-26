@@ -34,14 +34,14 @@ function EmptyState({ summary }: { summary: Summary | null }) {
           </section>
 
           <section className="panel">
-            <h3 className="micro">Across 116 segments</h3>
+            <h3 className="micro">Across {summary.counts.reduce((n, c) => n + c.n, 0)} segments</h3>
             <ul className="summary-bands">
               {summary.counts.map((c) => (
                 <li key={c.tier}>
                   <span className="swatch" style={{ background: TIER_COLOR[c.tier] }} aria-hidden="true" />
                   <span className="legend-label">{TIER_WORD[c.tier]}</span>
                   <span className="count-bar" aria-hidden="true">
-                    <span style={{ width: `${(c.n / 116) * 100}%`, background: TIER_COLOR[c.tier] }} />
+                    <span style={{ width: `${(c.n / Math.max(1, summary.counts.reduce((n, x) => n + x.n, 0))) * 100}%`, background: TIER_COLOR[c.tier] }} />
                   </span>
                   <span className="legend-value mono">{c.n}</span>
                 </li>

@@ -13,8 +13,8 @@ from pathlib import Path
 
 import geopandas as gpd
 import osmnx as ox
-from shapely.geometry import LineString, shape
-from shapely.ops import linemerge, substring
+from shapely.geometry import LineString, Point, shape
+from shapely.ops import substring
 
 from ingestion.aoi import AOI
 
@@ -75,34 +75,88 @@ def select_highway(roads: gpd.GeoDataFrame, ref_contains: str = "NH10") -> gpd.G
     return roads[refs.str.contains(wanted, na=False)].copy()
 
 
+def corridor_path(
+    highway: gpd.GeoDataFrame, start: tuple[float, float] | None = None,
+) -> LineString:
+    """The highway as one continuous line, start to end.
+
+    OSM draws a highway as dozens of ways: dual carriageways, both directions of
+    a one-way pair, slip roads, and pieces that overlap where two ways were
+    mapped over each other. Merging them does not give one line; it gives
+    several, and chaining those end to end makes the kilometre count jump
+    between distant places, run backwards, and count stretches twice.
+
+    Instead the ways become a graph, and the corridor is the shortest path
+    along it from `start` (a point in the highway's CRS) to the node furthest
+    from it. With no `start`, the path runs between the two ends furthest
+    apart, which is what an unnamed highway should mean by its length.
+    """
+    import networkx as nx
+
+    def node(c: tuple[float, ...]) -> tuple[float, float]:
+        # Decimetre rounding joins ways whose shared node was written twice.
+        return (round(c[0], 1), round(c[1], 1))
+
+    graph = nx.Graph()
+    for geom in highway.geometry:
+        for line in getattr(geom, "geoms", [geom]):
+            coords = list(line.coords)
+            for a, b in zip(coords, coords[1:], strict=False):
+                if node(a) != node(b):
+                    graph.add_edge(node(a), node(b), weight=Point(a).distance(Point(b)))
+    if graph.number_of_nodes() == 0:
+        raise ValueError("highway has no line geometry")
+
+    # A corridor is one road; a gap in OSM would otherwise pick the larger half
+    # silently, so it is refused rather than guessed across.
+    if not nx.is_connected(graph):
+        sizes = sorted((len(c) for c in nx.connected_components(graph)), reverse=True)
+        raise ValueError(f"highway is not one connected road: components of {sizes[:5]} nodes")
+
+    nodes = list(graph.nodes)
+    if start is None:
+        # Double sweep: the node furthest from anywhere is one end; the node
+        # furthest from that is the other.
+        first = max(nx.single_source_dijkstra_path_length(graph, nodes[0]).items(),
+                    key=lambda kv: kv[1])[0]
+    else:
+        first = min(nodes, key=lambda n: (n[0] - start[0]) ** 2 + (n[1] - start[1]) ** 2)
+    distance, paths = nx.single_source_dijkstra(graph, first)
+    last = max(distance, key=distance.get)
+    return LineString(paths[last])
+
+
 def build_chainage(
-    highway: gpd.GeoDataFrame, highway_code: str, spacing_m: float = CHAINAGE_M
+    highway: gpd.GeoDataFrame,
+    highway_code: str,
+    spacing_m: float = CHAINAGE_M,
+    start_lonlat: tuple[float, float] | None = None,
 ) -> gpd.GeoDataFrame:
     """Cut a highway into fixed-length segments — the unit alerts are issued against.
 
-    OSM splits a highway into many ways; they must be merged before cutting or
-    chainage restarts at every junction and the segment ids are meaningless.
+    Chainage is measured along one continuous path (see `corridor_path`), so km
+    N is N kilometres from the start along the road, every segment is distinct,
+    and the numbering only ever increases in the direction of travel.
+    `start_lonlat` pins where km 0 is; without it, one end of the road is chosen.
     """
-    merged = linemerge([g for g in highway.geometry if isinstance(g, LineString)]
-                       or list(highway.geometry))
-    parts = [merged] if isinstance(merged, LineString) else list(merged.geoms)
-    parts.sort(key=lambda p: p.length, reverse=True)
+    start = None
+    if start_lonlat is not None:
+        start_point = gpd.GeoSeries([Point(start_lonlat)], crs="EPSG:4326").to_crs(highway.crs)
+        start = (start_point.iloc[0].x, start_point.iloc[0].y)
+    path = corridor_path(highway, start)
 
-    rows, chainage = [], 0.0
-    for part in parts:
-        offset = 0.0
-        while offset < part.length:
-            end = min(offset + spacing_m, part.length)
-            piece = substring(part, offset, end)
-            if piece.length > 1.0:  # drop slivers left at the end of a part
-                rows.append({
-                    "highway_code": highway_code,
-                    "chainage_km": round(chainage / 1000.0, 3),
-                    "length_m": round(piece.length, 1),
-                    "geometry": piece,
-                })
-                chainage += piece.length
-            offset = end
+    rows, offset = [], 0.0
+    while offset < path.length:
+        end = min(offset + spacing_m, path.length)
+        piece = substring(path, offset, end)
+        if piece.length > 1.0:  # drop a sliver at the very end of the road
+            rows.append({
+                "highway_code": highway_code,
+                "chainage_km": round(offset / 1000.0, 3),
+                "length_m": round(piece.length, 1),
+                "geometry": piece,
+            })
+        offset = end
 
     out = gpd.GeoDataFrame(rows, crs=highway.crs)
     log.info("built %d segments covering %.1f km", len(out), out["length_m"].sum() / 1000)

@@ -1,5 +1,6 @@
 import { CheckCircle2, CircleDashed } from "lucide-react";
 import { LayerStack } from "../visuals/LayerStack";
+import { CORRIDOR } from "../../lib/corridor";
 
 const LAYERS = [
   {
@@ -14,7 +15,7 @@ const LAYERS = [
   },
   {
     n: 3, name: "Radar", ask: "Is the slope already moving?",
-    body: "Sentinel-1 InSAR. Coherence over this corridor is 0.095 median against a 0.30 threshold — vegetated Himalayan slopes are invisible to C-band radar. 37 of 116 segments observable, all stable, so this layer amplifies nothing yet.",
+    body: `Sentinel-1 InSAR. Coherence over this corridor is 0.095 median against a 0.30 threshold — vegetated Himalayan slopes are invisible to C-band radar. ${CORRIDOR.insarObservable} of ${CORRIDOR.segments} segments observable, all stable, so this layer amplifies nothing yet.`,
     status: "in progress", color: "var(--layer-deformation)",
   },
   {

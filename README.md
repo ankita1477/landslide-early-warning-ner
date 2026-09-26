@@ -9,14 +9,14 @@
 
 ## Status
 
-Built and validated on the **NH-10 Sevoke–Gangtok pilot corridor** — 109.6 km, 116 one-kilometre segments scored daily from satellite data alone.
+Built and validated on the **NH-10 Sevoke–Gangtok pilot corridor** — 95.2 km of road in 96 segments of about a kilometre each, scored daily from satellite data alone.
 
 | | |
 |---|---|
 | **Susceptibility** | **AUC 0.866** spatially blocked, 59 blocks · trained on 175 mapped landslide polygons |
 | **Hindcast** | **Red raised 8 days before** the landslide of 21 July 2016, 11 m from NH-10 |
 | **Trigger** | **31.7× lift** over base rate, calibrated to the true daily event rate |
-| **Across 42 events** | Red fired before **17%**, median lead **9 days**, walk-forward validated |
+| **Across 42 events** | Red fired before **17%**, median lead **9 days**, walk-forward validated — *measured before the corridor was rebuilt; re-run pending, see §16A* |
 | **Deformation** | **Not observable here** — coherence 0.095 median against a 0.30 threshold |
 
 The binding constraint is not the model. It is inventory location error: detection is **28% for events within 1 km of the corridor and 8% beyond it**, because the global catalogues locate most landslides to 5–25 km.
@@ -65,7 +65,7 @@ The repository is a working pilot on one corridor plus the design for the full r
 | **Terrain & susceptibility** | Copernicus GLO-30 derivatives via WhiteboxTools, 9 features, XGBoost, spatially blocked CV, 30 m raster | Lithology, soil, NDVI and structural features; transfer learning from other ranges |
 | **Rainfall trigger** | CHIRPS and IMERG via Earth Engine, antecedent features, calibrated logistic regression, 24 h horizon, temporal validation | LSTM sequence model; 48 / 72 h horizons; SMAP soil moisture; IMD station bias correction |
 | **Deformation** | LiCSAR interferograms read by byte range, coherence masking, chain integration, per-segment creep state and coverage flag | Running the SBAS chain from SLCs in SNAP / ISCE2 |
-| **Exposure & fusion** | OSM settlements and facilities, runout reach, 90th-percentile aggregation, per-corridor tier calibration, 116 segments | WorldPop density, traffic proxy, per-habitation scores |
+| **Exposure & fusion** | OSM settlements and facilities, runout reach, 90th-percentile aggregation, per-corridor tier calibration, 96 segments | WorldPop density, traffic proxy, per-habitation scores |
 | **Validation** | 2016-07-21 hindcast, 42-event walk-forward lead-time study | — |
 | **API** | FastAPI, 7 read endpoints, file-backed (GeoParquet), scoped CORS | PostGIS / TimescaleDB, Redis, TiTiler, auth, alert subscription, report intake |
 | **Dashboard** | React + MapLibre console: map, ranked list, corridor strip, inspector, table, keyboard, light / dark / system | Historical replay, SHAP waterfall, outcome feedback, OGC export |
@@ -150,8 +150,8 @@ Four graded tiers, deliberately aligned with the existing IMD colour convention 
 |---|---|---|---|
 | **Green** | Normal | Routine monitoring | below 0.0043 |
 | **Yellow** | Watch | Inspect drains and culverts; brief field staff | ≥ 0.0043 |
-| **Orange** | Alert | Pre-position clearing equipment; advise avoiding the segment at night | ≥ 0.0054 |
-| **Red** | Warning | Restrict traffic; prepare evacuation of flagged habitations | ≥ 0.0069 |
+| **Orange** | Alert | Pre-position clearing equipment; advise avoiding the segment at night | ≥ 0.0055 |
+| **Red** | Warning | Restrict traffic; prepare evacuation of flagged habitations | ≥ 0.0070 |
 
 Thresholds are **not hard-coded constants.** The calibrated trigger probabilities are small numbers — a daily event rate of 0.8% is the truth of this corridor — so the fixed 0.25 / 0.50 / 0.75 cut-points of the original design would never fire. Instead the cut-points are fitted per corridor from the risk distribution's own frequencies (`models/fusion/risk.py`), served by `GET /risk/tiers`, and the hindcast refuses to score itself against thresholds derived from the window being replayed. Recalibration from official feedback (§9.4) is designed, not built.
 
@@ -530,7 +530,7 @@ Dense vegetation causes InSAR decorrelation, and NER is densely vegetated. The s
 - Every risk score carries a **coverage flag** — `full`, `partial`, or `none` — describing InSAR support for that segment.
 - Where coverage is `none`, `D` defaults to 1.0 and the dashboard states plainly that the deformation layer is unavailable there.
 
-On NH-10 this is the whole story: median coherence is **0.095 against the 0.30 threshold**, 37 of 116 segments are observable, all of them stable, and no public LiCSAR product predates March 2025 — so Layer 3 cannot improve any historical result either. §16A has the figures.
+On NH-10 this is the whole story: median coherence is **0.095 against the 0.30 threshold**, 33 of 96 segments are observable, all of them stable, and no public LiCSAR product predates March 2025 — so Layer 3 cannot improve any historical result either. §16A has the figures.
 
 Reporting a coverage gap honestly is the correct engineering choice; a smoothly interpolated map that quietly invents data in exactly the places it cannot see is worse than no map at all.
 
@@ -579,7 +579,7 @@ Audience: PWD, BRO, NDRF, State Disaster Management Authorities, district contro
 
 | Feature | Built | Description |
 |---|---|---|
-| **Map** | ✓ | MapLibre GL over a desaturated OSM basemap; 116 segments coloured by band, with severity also encoded in **line width** (2 / 4 / 6 / 8 px) and a dash on Warning, so it survives greyscale and colour-vision deficiency. Single-layer views (susceptibility, trigger, deformation, exposure) on a neutral ramp |
+| **Map** | ✓ | MapLibre GL over a desaturated OSM basemap; 96 segments coloured by band, with severity also encoded in **line width** (2 / 4 / 6 / 8 px) and a dash on Warning, so it survives greyscale and colour-vision deficiency. Single-layer views (susceptibility, trigger, deformation, exposure) on a neutral ramp |
 | **Ranked list** | ✓ | Every kilometre sorted by risk or chainage, score bar per row, jump-to-km search, CSV export. Band filters and a drag-to-brush range on the strip narrow it |
 | **Corridor strip** | ✓ | The whole road as a linear profile — the one view a folded mountain road cannot give on a map |
 | **Inspector** | ✓ | Per-segment score meter against the calibrated thresholds, the four factor components as a bar, antecedent-rainfall sparkline, terrain features, nearby mapped scars, InSAR coverage; JSON export. Empty state carries the corridor summary |
@@ -674,7 +674,7 @@ What runs in the pilot, and beside it what the full design adds.
 - **XGBoost over deep learning for Layer 1** — small tabular dataset, physically meaningful features, and native SHAP support that the explainability requirement makes non-negotiable.
 - **A file-backed API** (`api/store.py`) rather than the designed PostGIS: the pipeline already writes GeoParquet, and reading it gives a working service with no database to run. Access goes through one `RiskStore` class, so the database is a later swap, not a rewrite.
 - **LiCSAR instead of a local InSAR chain** — the difference between minutes per read and hours per interferogram, on a laptop.
-- **COGs + TiTiler** (designed) would let the dashboard stream raster tiles directly from object storage; the pilot draws the 116 segments as vector GeoJSON and needs no tile server.
+- **COGs + TiTiler** (designed) would let the dashboard stream raster tiles directly from object storage; the pilot draws the 96 segments as vector GeoJSON and needs no tile server.
 
 ---
 
@@ -688,7 +688,7 @@ What runs in the pilot, and beside it what the full design adds.
 | **Radar deformation** | Sentinel-1 via COMET-LiCSAR interferograms | 100 m, 6–12 day | ✓ not observable here (coherence) |
 | **Landslide inventory, locations** | Multi-temporal Sikkim catalogue (Zenodo, CC-BY) | 175 mapped polygons | ✓ Layer 1 labels |
 | **Landslide inventory, dates** | NASA Global Landslide Catalog | Points, 5–25 km accuracy | ✓ Layer 2 event dates only |
-| **Roads and exposure** | OpenStreetMap via OSMnx | Vector | ✓ 116 segments, 123 settlements, 68 facilities |
+| **Roads and exposure** | OpenStreetMap via OSMnx | Vector | ✓ 96 segments, 123 settlements, 68 facilities |
 | **Inventory** | GSI Bhukosh | Mapped events | ✗ portal not reachable outside India |
 | **Rainfall (in-situ)** | IMD AWS network & gridded product | Station / 0.25° | ✗ designed |
 | **Optical / NDVI** | Sentinel-2, Landsat 8/9 | 10–30 m, 5 day | ✗ designed |
@@ -972,32 +972,29 @@ There is one scored run. Per-day history, and therefore replay and "sort by chan
 | `POST` | `/reports` · `GET /reports?bbox=` | Citizen report intake and moderation — the app queues these locally until it exists |
 | `GET` | `/tiles/{layer}/{z}/{x}/{y}` · `/export/geojson?bbox=` | Raster tiles via TiTiler; OGC export |
 
-### 14.3 Sample Response — `GET /risk/segments/NH-10:58.015`
+### 14.3 Sample Response — `GET /risk/segments/NH-10:91.0`
 
-Live from the pilot run:
+Live from the pilot run — the highest-risk segment, in Gangtok:
 
 ```json
 {
-  "id": "NH-10:58.015",
+  "id": "NH-10:91.0",
   "highway_code": "NH-10",
-  "chainage_km": 58.015,
-  "risk": 0.0064187,
-  "tier": "orange",
-  "computed_at": "2026-09-05T14:44:51.663909",
+  "chainage_km": 91.0,
+  "risk": 0.00718,
+  "tier": "red",
   "horizon_h": 24,
-  "hazard": 0.0077024,
   "length_m": 1000.0,
-  "runout_reach_m": 547.5,
   "components": {
-    "susceptibility": 0.7645,
+    "susceptibility": 0.7131,
     "trigger_probability": 0.0101,
     "deformation_modifier": 1.0,
-    "exposure": 0.8333
+    "exposure": 1.0
   }
 }
 ```
 
-`risk = susceptibility × trigger_probability × deformation_modifier × exposure`, exactly, and `tier` is `risk` against `GET /risk/tiers` (red ≥ 0.00686, orange ≥ 0.00535, yellow ≥ 0.00427 on this run). The components are always returned with the score: an official who cannot see why a segment is orange has no basis to act on it.
+`risk = susceptibility × trigger_probability × deformation_modifier × exposure`, exactly, and `tier` is `risk` against `GET /risk/tiers` (red ≥ 0.00705, orange ≥ 0.00549, yellow ≥ 0.00429 on this run). The components are always returned with the score: an official who cannot see why a segment is red has no basis to act on it.
 
 ---
 
@@ -1140,7 +1137,7 @@ Calibration mattered more than the model. Balanced class weights are what make 5
 
 **Not observable on this corridor.** Coherence over the AOI is **0.147 mean, 0.095 median, 0.239 at the 90th percentile** — all below the 0.30 threshold, verified against the raw product rather than inferred. Steep vegetated Himalayan slopes decorrelate at C-band.
 
-Only **0.26%** of AOI pixels stay coherent through all 32 interferograms, though a 500 m buffer around the road recovers enough built-up ground that **37 of 116 segments** get a usable series. All 37 classify as stable, so the deformation modifier is 1.0 corridor-wide and no risk score changes.
+Only **0.26%** of AOI pixels stay coherent through all 32 interferograms, though a 500 m buffer around the road recovers enough built-up ground that **33 of 96 segments** get a usable series. All 33 classify as stable, so the deformation modifier is 1.0 corridor-wide and no risk score changes.
 
 Raw chain integration gave every segment a uniform 12–26 mm/yr, which was atmosphere rather than ground. Referencing each epoch to its spatial median moves velocities to **−1.9 mm/yr mean, range −19 to +8**.
 
@@ -1166,6 +1163,8 @@ Tier thresholds for this replay come from the full 2007–2018 record, not from 
 
 ### Lead-time distribution — 42 events, walk-forward
 
+> **Re-run pending.** These figures were measured on the corridor as first built, whose chainage was stitched from OpenStreetMap pieces out of order: past km 50 it jumped between places and counted some stretches twice (§16B). 20 of the 42 events were matched to segments in that part. The corridor has since been rebuilt as one continuous path; the study must be re-run against it, which needs Earth Engine to re-fetch the rainfall. Until then treat the table below as provisional. The 2016 hindcast above is unaffected — its segment, km 3, is identical to within 0.2 m in both versions.
+
 Each event scored by a model fitted only on years strictly before its own:
 
 | Tier | Fired for | Median lead | 10th percentile | Max |
@@ -1190,6 +1189,14 @@ Detection is **28% for events within 1 km of the corridor against 8% further awa
 The global catalogues are news-derived and geocode most events to a settlement; at 25 km accuracy that is 833 pixels of error on a 30 m grid. GSI Bhukosh, the official Indian inventory, was unreachable. A published multi-temporal Sikkim inventory supplied the 175 mapped polygons the model is actually trained on.
 
 Widening the area does not help: reaching 131 usable points from the global catalogues would require an 1,662 km study area spanning geology unrelated to this corridor.
+
+### 16B. Corridor geometry — corrected
+
+The first build cut NH-10 into segments by merging its OpenStreetMap ways and chaining the resulting pieces longest-first. OSM draws the highway as 87 ways — dual carriageways, overlapping duplicates, short spurs — which do not merge into one line, so the chain jumped between distant places, ran backwards, and counted stretches twice: 116 segments and "109.6 km", with Singtam numbered before Rangpo and Gangtok at km 73.8.
+
+The corridor is now the shortest path through the ways as a graph, from the original km 0 to the far end in Gangtok (`corridor_path` in `ingestion/clients/roads.py`, with tests for out-of-order, duplicated and spurred ways). It is **95.2 km in 96 segments**, and the towns fall in road order: Teesta Bazaar km 31, Melli 37, Rangpo 54, Singtam 66, Ranipool 83, Gangtok 92. The first 50 km, including the hindcast segment, did not move.
+
+Re-scoring on it gives Safe 52 · Caution 28 · Warning 14 · Danger 2; the highest-risk segments are km 90–91 in Gangtok, where susceptibility is high and exposure is the corridor's maximum.
 
 ### Intensity–duration threshold — not fitted
 
@@ -1416,7 +1423,7 @@ Designed, not present: `testcontainers` integration against a seeded database, L
 
 *Measured on this corridor, not anticipated — see §16A for the figures.*
 
-- **Detection is 17% at the Red tier** across 42 replayed events. The warnings that fire are timely (median 9 days), but most events produce no alert at all.
+- **Detection is 17% at the Red tier** across 42 replayed events (provisional — measured on the first corridor build; re-run pending, §16A). The warnings that fire are timely (median 9 days), but most events produce no alert at all.
 - **Inventory location error is the largest single cause.** Detection is 28% for events within 1 km of the corridor and 8% beyond it. The global catalogues locate most events to 5–25 km, which is 167–833 pixels at 30 m.
 - **Layer 3 contributes nothing here.** Coherence is 0.095 median against a 0.30 threshold, and no public InSAR exists before March 2025, so it cannot improve any historical result either.
 - **The intensity–duration baseline could not be fitted.** The inventory's duration and intensity correlate with the wrong sign, most likely reporting bias.
@@ -1446,7 +1453,7 @@ Designed, not present: `testcontainers` integration against a seeded database, L
 | **2 — Susceptibility model** | Feature stack, negative sampling, XGBoost with spatially blocked CV, susceptibility raster | ☑ **AUC 0.866** blocked; SHAP explainer not wired into the API |
 | **3 — Rainfall trigger** | Antecedent-rainfall features, calibrated probabilities, temporal validation | ☑ **31.7× lift**; regularised logistic regression rather than an LSTM — 51 positives would be memorised. I–D threshold cannot be fitted to this inventory |
 | **4 — Deformation layer** | LiCSAR chain over the corridor, displacement time series, change-point detection, coverage flags | ☑ built, but **not observable here** — coherence 0.095 median against a 0.30 threshold |
-| **5 — Fusion & exposure** | Runout buffers, segment scoring, tier calibration, exposure from settlements and facilities | ☑ 116 segments; exposure spans 0.15–1.00 from 123 OSM settlements and 68 facilities |
+| **5 — Fusion & exposure** | Runout buffers, segment scoring, tier calibration, exposure from settlements and facilities | ☑ 96 segments along one continuous path; exposure spans 0.15–1.00 from 123 OSM settlements and 68 facilities |
 | **6 — API & dashboard** | FastAPI endpoints, React dashboard with map, watchlist, corridor strip and factor breakdown | ☑ 7 endpoints; TiTiler tiles and historical replay not built |
 | **7 — Delivery** | SMS gateway, escalation dispatcher, delivery tracking, citizen app | ☑ *partial* — dispatcher and templates built; **English only** until translations are reviewed, **dry-run only** without credentials. Citizen app **Landsafe NER** built (Expo, 5 screens, offline cache, plain-language explanations); reports queue on device as no endpoint accepts them. IVR not built |
 | **8 — Validation** | Hindcast, metric report, lead-time distribution | ☑ **8-day warning** on a real event; 42-event walk-forward study — see §16A |

@@ -4,27 +4,27 @@
   "km": 0.0
  },
  {
-  "name": "Kalimpong",
-  "km": 37.0
+  "name": "Teesta Bazaar",
+  "km": 31.2
  },
  {
-  "name": "Singtam",
-  "km": 59.0
+  "name": "Melli",
+  "km": 36.8
  },
  {
   "name": "Rangpo",
-  "km": 70.0
+  "km": 54.4
+ },
+ {
+  "name": "Singtam",
+  "km": 65.6
+ },
+ {
+  "name": "Ranipool",
+  "km": 82.5
  },
  {
   "name": "Gangtok",
-  "km": 73.8
- },
- {
-  "name": "Rumtek",
-  "km": 86.8
- },
- {
-  "name": "Paschim Totgaon",
-  "km": 109.4
+  "km": 95.2
  }
 ]

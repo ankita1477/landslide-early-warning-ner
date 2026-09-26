@@ -3,12 +3,13 @@ import { motion } from "framer-motion";
 import type { SegmentSummary, Tier } from "../../api/client";
 import { TIER_COLOR, TIER_INK, TIER_WORD } from "../../theme";
 import { EASE_OUT_EXPO } from "../../lib/motion";
+import { CORRIDOR } from "../../lib/corridor";
 
 interface Props { segments: SegmentSummary[]; onEnter: () => void; ready: number | null }
 
 const ORDER: Tier[] = ["red", "orange", "yellow", "green"];
 
-/** The corridor as 116 ticks, in chainage order — the dashboard in one glance. */
+/** The corridor as one tick per segment, in chainage order — the dashboard in one glance. */
 export function Corridor({ segments, onEnter, ready }: Props) {
   const ordered = [...segments].sort((a, b) => a.chainage_km - b.chainage_km);
   const counts = ORDER.map((tier) => ({ tier, n: ordered.filter((s) => s.tier === tier).length }));
@@ -19,7 +20,7 @@ export function Corridor({ segments, onEnter, ready }: Props) {
       <h2 className="h2">One tick per segment, Sevoke on the left.</h2>
 
       <div className="tick-strip" role="img"
-           aria-label={`116 segments: ${counts.map((c) => `${c.n} ${TIER_WORD[c.tier]}`).join(", ")}`}>
+           aria-label={`${ordered.length} segments: ${counts.map((c) => `${c.n} ${TIER_WORD[c.tier]}`).join(", ")}`}>
         {ordered.map((segment, i) => (
           <motion.span key={segment.id} className="tick"
                        style={{ background: TIER_COLOR[segment.tier] }}
@@ -28,7 +29,7 @@ export function Corridor({ segments, onEnter, ready }: Props) {
                        transition={{ duration: 0.4, delay: i * 0.005, ease: EASE_OUT_EXPO }} />
         ))}
       </div>
-      <div className="tick-axis mono"><span>km 0 · Sevoke</span><span>km 109.6 · Gangtok</span></div>
+      <div className="tick-axis mono"><span>km 0 · Sevoke</span><span>km {CORRIDOR.lengthKm} · Gangtok</span></div>
 
       <div className="corridor-counts">
         {counts.map(({ tier, n }) => (

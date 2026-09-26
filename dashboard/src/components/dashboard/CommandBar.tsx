@@ -3,6 +3,7 @@ import { Switch, ToggleGroup, Tooltip } from "radix-ui";
 import type { Health, Tier } from "../../api/client";
 import { TIER_COLOR, TIER_WORD } from "../../theme";
 import { Mark } from "../Mark";
+import { CORRIDOR } from "../../lib/corridor";
 import { ThemeToggle } from "../ThemeToggle";
 import type { ThemeMode } from "../../lib/themeMode";
 
@@ -53,7 +54,7 @@ export function CommandBar({
           </button>
         </Tip>
         <span className="brand"><Mark size={20} /> Landsafe <em>NER</em></span>
-        <span className="cb-sub mono">NH-10 · Sevoke–Gangtok · 109.6 km</span>
+        <span className="cb-sub mono">NH-10 · Sevoke–Gangtok · {CORRIDOR.lengthKm} km</span>
       </div>
 
       <ToggleGroup.Root type="multiple" value={activeBands} className="bands"

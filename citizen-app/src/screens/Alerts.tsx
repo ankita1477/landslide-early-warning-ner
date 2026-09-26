@@ -29,8 +29,8 @@ export function Alerts() {
           <Quiet size={120} />
           <Text style={styles.emptyTitle}>All quiet</Text>
           <Text style={styles.emptyBody}>
-            No alerts yet. Keep the app installed and it will record each change
-            for the road you travel on.
+            No alerts yet. Changes are recorded while you are on NH-10, for the
+            stretch you are travelling on.
           </Text>
         </View>
       )}

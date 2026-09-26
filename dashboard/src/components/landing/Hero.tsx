@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import type { SegmentSummary } from "../../api/client";
 import { CorridorBlock } from "../visuals/CorridorBlock";
 import { fadeUp } from "../../lib/motion";
+import { CORRIDOR } from "../../lib/corridor";
 
 function runLabel(iso: string | null) {
   if (!iso) return "connecting to the scoring run";
@@ -20,8 +21,8 @@ export function Hero({ segments, computedAt }: { segments: SegmentSummary[]; com
           Every stretch of the road, read before the rain arrives.
         </motion.h1>
         <motion.p className="lede" variants={fadeUp} custom={2} initial="hidden" animate="visible">
-          NH-10 from Sevoke to Gangtok: <span className="mono">109.6</span> km of
-          road, cut into 116 segments and scored every day from satellite
+          NH-10 from Sevoke to Gangtok: <span className="mono">{CORRIDOR.lengthKm}</span> km of
+          road, cut into {segments.length || CORRIDOR.segments} segments and scored every day from satellite
           rainfall, terrain and radar. No ground sensors. One number per
           segment, and the reason behind it.
         </motion.p>

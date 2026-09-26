@@ -140,7 +140,7 @@ export const ACTION: Record<Tier, { label: string; action: string; urgent: boole
   },
   red: {
     label: "Do not travel",
-    action: "Do not use this road. Landslides are likely here. Wait for the all-clear.",
+    action: "Do not use this road. Landslides are likely here. Wait until the road authority reopens it.",
     urgent: true,
   },
 };

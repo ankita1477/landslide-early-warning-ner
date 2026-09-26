@@ -66,13 +66,18 @@ export function Today({ onRoute, onSafety, onEscalation }: {
       setPoint(result);
       const full = await api.segment(result.data.segment.id);
       setDetail(full.data);
-      const band = result.data.segment.tier as Tier;
-      const km = result.data.segment.chainage_km;
-      const reason = headline(full.data.components, band);
-      const { escalated } = await record(band, km, reason);
-      // The banner is for the moment conditions worsen. Anything else is
-      // already on the screen below it and does not need to interrupt anyone.
-      if (escalated) onEscalation({ tier: band, km, reason });
+      // History and the banner are about the stretch the person is on. A
+      // reading of Sevoke shown to someone in another state is context, not
+      // their stretch, so it is neither recorded nor announced.
+      if (position && result.data.distance_to_segment_m <= NEAR_ROAD_M) {
+        const band = result.data.segment.tier as Tier;
+        const km = result.data.segment.chainage_km;
+        const reason = headline(full.data.components, band);
+        const { escalated } = await record(band, km, reason);
+        // The banner is for the moment conditions worsen. Anything else is
+        // already on the screen below it and does not need to interrupt anyone.
+        if (escalated) onEscalation({ tier: band, km, reason });
+      }
     } catch {
       setFailed(true);
     } finally {

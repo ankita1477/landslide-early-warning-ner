@@ -19,7 +19,7 @@ const CELL_H = 24;
 
 /** A linear profile of the whole corridor.
  *
- *  This is the thing the map genuinely cannot show: 109.6 km of road folded into
+ *  This is the thing the map genuinely cannot show: a road folded into
  *  a mountain valley hides most of itself at any zoom, so chainage order only
  *  exists here.
  */
@@ -31,7 +31,8 @@ export function CorridorStrip({
   const [hover, setHover] = useState<SegmentSummary | null>(null);
 
   const ordered = [...segments].sort((a, b) => a.chainage_km - b.chainage_km);
-  const maxKm = 109.6;
+  // Where the last segment ends: its start plus the kilometre it covers.
+  const maxKm = Math.max(...ordered.map((s) => s.chainage_km), 0) + 1;
   const maxRisk = Math.max(...ordered.map((s) => s.risk), 0.001) * 1.15;
 
   const plotW = W - PAD.left - PAD.right;
@@ -85,7 +86,7 @@ export function CorridorStrip({
               strokeLinecap="round" strokeLinejoin="round" />
 
         {ordered.map((s) => {
-          const cellW = Math.max(2, plotW / 116 - 2);
+          const cellW = Math.max(2, plotW / Math.max(1, ordered.length) - 2);
           const dim = !visibleIds.has(s.id);
           return (
             <rect key={s.id} x={x(s.chainage_km)} y={H - PAD.bottom - CELL_H}
@@ -113,7 +114,7 @@ export function CorridorStrip({
                 y1={PAD.top} y2={H - PAD.bottom} stroke="var(--ink)" strokeWidth={1.5} />
         )}
 
-        {[0, 20, 40, 60, 80, 100].map((km) => (
+        {[0, 20, 40, 60, 80, 100].filter((km) => km <= maxKm).map((km) => (
           <text key={km} x={x(km)} y={H - 8} className="strip-tick mono"
                 textAnchor="middle" fill="var(--ink-3)">{km}</text>
         ))}
