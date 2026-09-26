@@ -75,7 +75,7 @@ export function CommandBar({
         </Tip>
         <span className={stale ? "status stale" : "status live"}>
           <span className="status-dot" aria-hidden="true" />
-          {stale ? "stale" : <>live<span className="wide-only"> · {health?.segments_loaded ?? 0} km</span></>}
+          {stale ? "stale" : <>live<span className="wide-only"> · {health?.segments_loaded ?? 0} segments</span></>}
         </span>
         <Tip label="High-contrast bands: order by lightness alone">
           <label className="switch-row">

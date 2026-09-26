@@ -34,7 +34,7 @@ function EmptyState({ summary }: { summary: Summary | null }) {
           </section>
 
           <section className="panel">
-            <h3 className="micro">Across 116 kilometres</h3>
+            <h3 className="micro">Across 116 segments</h3>
             <ul className="summary-bands">
               {summary.counts.map((c) => (
                 <li key={c.tier}>

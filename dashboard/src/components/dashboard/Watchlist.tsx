@@ -74,7 +74,7 @@ export function Watchlist({
     <div className="watchlist">
       <div className="wl-head">
         <div className="wl-title-row">
-          <h2 className="micro">Kilometres</h2>
+          <h2 className="micro">Segments</h2>
           <p className="wl-count mono">{segments.length} / {total}</p>
         </div>
         <label className="search">
@@ -96,7 +96,7 @@ export function Watchlist({
 
       {segments.length === 0 ? (
         <div className="wl-empty">
-          <p>No kilometres match.</p>
+          <p>No segments match.</p>
           <button className="btn btn-ghost" onClick={onClearFilters}>Clear filters</button>
         </div>
       ) : (
