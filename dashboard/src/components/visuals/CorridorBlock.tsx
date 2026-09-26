@@ -66,7 +66,7 @@ export function CorridorBlock({ segments }: { segments: SegmentSummary[] }) {
       <path d="M80 178 C 140 160, 220 176, 300 210" fill="none" stroke="var(--figure-ink)" strokeOpacity="0.10" />
       <path d="M100 166 C 160 150, 230 164, 320 198" fill="none" stroke="var(--figure-ink)" strokeOpacity="0.10" />
 
-      {/* The road: casing, then one piece per kilometre in band colour. */}
+      {/* The road: casing, then one piece per segment in band colour. */}
       <path d={ordered.length ? Array.from({ length: 41 }, (_, i) => {
         const [x, y] = spine(i / 40); return `${i ? "L" : "M"} ${x.toFixed(1)} ${y.toFixed(1)}`;
       }).join(" ") : ""} fill="none" stroke="var(--figure-ink)" strokeOpacity="0.35" strokeWidth={11} strokeLinecap="round" />

@@ -19,7 +19,7 @@ const LAYERS = [
   },
   {
     n: 4, name: "People", ask: "Who and what is in the way?",
-    body: "Each segment aggregates hazard at the 90th percentile within its runout reach — 100 to 815 m, scaled to the relief above it. A kilometre of road is only as safe as its worst slope.",
+    body: "Each segment aggregates hazard at the 90th percentile within its runout reach — 100 to 815 m, scaled to the relief above it. A segment of road is only as safe as its worst slope.",
     status: "working", color: "var(--layer-exposure)",
   },
 ] as const;
@@ -32,7 +32,7 @@ export function Method() {
         <div className="method-art"><LayerStack /></div>
         <div className="method-copy">
           <p className="eyebrow">How a score is built</p>
-          <h2 className="h2">Four readings of the same kilometre, multiplied.</h2>
+          <h2 className="h2">Four readings of the same segment, multiplied.</h2>
           <p className="method-lede">
             A weak slope with no rain is quiet. Heavy rain on solid rock is a
             wet day. The score only climbs when the readings agree — which is

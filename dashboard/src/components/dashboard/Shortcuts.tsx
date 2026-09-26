@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 
 const KEYS = [
   ["↑ ↓", "move through the list"],
-  ["Enter", "select the focused kilometre"],
+  ["Enter", "select the focused segment"],
   ["Esc", "clear selection, or close this"],
   ["1 – 4", "toggle Danger, Warning, Caution, Safe"],
   ["c", "clear all filters"],

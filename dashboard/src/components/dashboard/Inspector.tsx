@@ -20,7 +20,7 @@ function EmptyState({ summary }: { summary: Summary | null }) {
     <div className="inspector">
       <p className="empty-title">The corridor now</p>
       <p className="empty-help">
-        Pick a kilometre on the map, the list, or the strip to see what drives it.
+        Pick a segment on the map, the list, or the strip to see what drives it.
       </p>
 
       {summary && (

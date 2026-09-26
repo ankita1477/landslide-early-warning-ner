@@ -17,14 +17,13 @@ export function Hero({ segments, computedAt }: { segments: SegmentSummary[]; com
           Landslide early warning · North Eastern Region
         </motion.p>
         <motion.h1 className="display" variants={fadeUp} custom={1} initial="hidden" animate="visible">
-          Every kilometre of the road, read before the rain arrives.
+          Every stretch of the road, read before the rain arrives.
         </motion.h1>
         <motion.p className="lede" variants={fadeUp} custom={2} initial="hidden" animate="visible">
           NH-10 from Sevoke to Gangtok: <span className="mono">109.6</span> km of
-          road, cut into 116 segments of about a kilometre each and scored every
-          day from satellite rainfall, terrain and radar. No ground sensors. One
-          number per segment, and the
-          reason behind it.
+          road, cut into 116 segments and scored every day from satellite
+          rainfall, terrain and radar. No ground sensors. One number per
+          segment, and the reason behind it.
         </motion.p>
         <motion.p className="hero-run mono" variants={fadeUp} custom={3} initial="hidden" animate="visible">
           {runLabel(computedAt)}

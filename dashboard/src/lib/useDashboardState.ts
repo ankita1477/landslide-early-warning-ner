@@ -62,7 +62,7 @@ function reducer(state: DashboardState, action: Action): DashboardState {
       return { ...state, bands };
     }
     case "setBands":
-      // An empty selection would hide every kilometre; the group is treated as
+      // An empty selection would hide every segment; the group is treated as
       // "all" instead, which is what a person clearing chips actually wants.
       return { ...state, bands: action.bands.length ? action.bands : [...TIERS] };
     case "clearFilters":

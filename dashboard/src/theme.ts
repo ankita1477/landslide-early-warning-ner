@@ -1,7 +1,7 @@
 import type { Tier } from "./api/client";
 
 /** Moss, amber, ember, brick — the same four hex values the citizen app uses,
- *  so a person and a control room never see one kilometre in two colours.
+ *  so a person and a control room never see one segment in two colours.
  *  Read by MapLibre, which cannot see CSS variables. */
 export const TIER_COLOR: Record<Tier, string> = {
   green: "#3a8f5a", yellow: "#d9a21b", orange: "#e0662b", red: "#c8362b",
