@@ -1,13 +1,13 @@
 """Earth Engine authentication.
 
 Prefers Application Default Credentials over a downloaded service-account key.
-The example.org organisation enforces
+Some organisations enforce
 `iam.managed.disableServiceAccountKeyCreation`, so no key can be created for a
-project in that org — and that policy is worth keeping. ADC needs no key file
+project in such an org — and that policy is worth keeping. ADC needs no key file
 and nothing secret ever lands on disk in the repo.
 
 A key path is still honoured when one is present, for deployment environments
-outside that org where a key is the only option.
+outside such an org where a key is the only option.
 """
 
 from __future__ import annotations
