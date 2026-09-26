@@ -77,7 +77,7 @@ export function LayerStack() {
         );
       })}
 
-      <text x={cx} y={20} className="ls-result" textAnchor="middle">= risk, per kilometre, per day</text>
+      <text x={cx} y={20} className="ls-result" textAnchor="middle">= risk, per segment, per day</text>
     </svg>
   );
 }

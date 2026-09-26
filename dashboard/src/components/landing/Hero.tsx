@@ -20,9 +20,10 @@ export function Hero({ segments, computedAt }: { segments: SegmentSummary[]; com
           Every kilometre of the road, read before the rain arrives.
         </motion.h1>
         <motion.p className="lede" variants={fadeUp} custom={2} initial="hidden" animate="visible">
-          NH-10 from Sevoke to Gangtok, <span className="mono">109.6 km</span> in
-          116 one-kilometre stretches, scored every day from satellite rainfall,
-          terrain and radar. No ground sensors. One number per kilometre, and the
+          NH-10 from Sevoke to Gangtok: <span className="mono">109.6</span> km of
+          road, cut into 116 segments of about a kilometre each and scored every
+          day from satellite rainfall, terrain and radar. No ground sensors. One
+          number per segment, and the
           reason behind it.
         </motion.p>
         <motion.p className="hero-run mono" variants={fadeUp} custom={3} initial="hidden" animate="visible">
@@ -32,7 +33,7 @@ export function Hero({ segments, computedAt }: { segments: SegmentSummary[]; com
       <motion.div className="hero-art" initial={{ y: 14 }} animate={{ y: 0 }}
                   transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}>
         <CorridorBlock segments={segments} />
-        <p className="hero-caption">The corridor today, drawn as ground. Each piece of the road is one kilometre in its band.</p>
+        <p className="hero-caption">The corridor today, drawn as ground. Each piece of the road is one segment, coloured by its band.</p>
       </motion.div>
     </header>
   );

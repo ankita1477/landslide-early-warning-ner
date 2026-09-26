@@ -16,7 +16,7 @@ export function Corridor({ segments, onEnter, ready }: Props) {
   return (
     <section className="corridor">
       <p className="eyebrow">The corridor today</p>
-      <h2 className="h2">One tick per kilometre, Sevoke on the left.</h2>
+      <h2 className="h2">One tick per segment, Sevoke on the left.</h2>
 
       <div className="tick-strip" role="img"
            aria-label={`116 segments: ${counts.map((c) => `${c.n} ${TIER_WORD[c.tier]}`).join(", ")}`}>

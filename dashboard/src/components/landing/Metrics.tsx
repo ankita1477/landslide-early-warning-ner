@@ -4,7 +4,7 @@ const METRICS = [
   { value: 0.866, decimals: 3, suffix: "", label: "Susceptibility AUC", note: "spatially blocked, 59 blocks" },
   { value: 8, decimals: 0, suffix: " days", label: "Warning before a real landslide", note: "21 Jul 2016 · 11 m from NH-10" },
   { value: 31.7, decimals: 1, suffix: "×", label: "Trigger lift over base rate", note: "calibrated daily probability" },
-  { value: 116, decimals: 0, suffix: "", label: "One-kilometre segments scored", note: "Sevoke to Gangtok" },
+  { value: 116, decimals: 0, suffix: "", label: "Road segments scored", note: "109.6 km, Sevoke to Gangtok" },
 ] as const;
 
 function Metric({ metric }: { metric: (typeof METRICS)[number] }) {
