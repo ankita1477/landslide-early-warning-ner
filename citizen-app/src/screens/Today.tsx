@@ -13,7 +13,10 @@ import { ACTION, NEAR_ROAD_M, SITUATION, SITUATION_THERE, distanceLabel, headlin
 import { PULSE, useReducedMotion } from "../lib/motion";
 import { C, RADIUS, SPACE, TIER_COLOR, TIER_INK, TIER_RANK, TIER_WASH, TIER_WORD, TYPE, type Tier } from "../lib/theme";
 
-const SEVOKE = { lat: 26.9, lon: 88.47 };
+// The middle of the first segment, km 0, where NH-10 leaves Sevoke. Not the
+// town's centre: that sits about 3 km along the road and would show km 3 under
+// a line that says "where the road starts".
+const SEVOKE = { lat: 26.8800, lon: 88.4719 };
 
 /** The one screen most people will ever open: where they are, what the
  *  hillside above them is doing, and what to do about it. */
