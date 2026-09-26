@@ -104,7 +104,9 @@ export function Today({ onRoute, onSafety, onEscalation }: {
         <View style={[styles.hero, { backgroundColor: TIER_WASH[tier] }]}>
           <View style={styles.heroTop}>
             <Text style={[styles.eyebrow, { color: TIER_INK[tier] }]}>
-              {where === "here" ? "Your stretch" : "Sevoke"} · NH-10 km {point.data.segment.chainage_km.toFixed(0)}
+              {where === "here"
+                ? `Your stretch · NH-10 km ${point.data.segment.chainage_km.toFixed(0)}`
+                : "Sevoke · start of NH-10"}
             </Text>
             <Badge tier={tier} />
           </View>
