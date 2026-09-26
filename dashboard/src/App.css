@@ -8,7 +8,7 @@
 .mark { color: var(--ink); flex: none; }
 .h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.5rem, 2.8vw, 2.1rem); line-height: 1.15; letter-spacing: -0.015em; margin: 0 0 14px; }
 
-.btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 600; font-size: 13.5px; padding: 9px 14px; border-radius: var(--radius-control); border: 1px solid var(--line-hi); background: var(--panel); color: var(--ink); cursor: pointer; transition: background .15s, border-color .15s, transform .15s var(--ease-out-expo); }
+.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 600; font-size: 13.5px; padding: 9px 14px; border-radius: var(--radius-control); border: 1px solid var(--line-hi); background: var(--panel); color: var(--ink); cursor: pointer; transition: background .15s, border-color .15s, transform .15s var(--ease-out-expo); }
 .btn:hover { border-color: var(--ink); }
 .btn-ink { background: var(--ink); color: var(--fog); border-color: var(--ink); }
 .btn-ink:hover { background: color-mix(in srgb, var(--ink) 86%, var(--fog)); transform: translateY(-1px); }

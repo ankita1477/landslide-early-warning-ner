@@ -48,7 +48,7 @@ export function TableView({ segments, open, onOpenChange }: {
                       <td className="mono">{t.elevation_m ?? "—"}</td>
                       <td className="mono">{t.twi ?? "—"}</td>
                       <td className="mono">{t.scars_within_500m ?? 0}</td>
-                      <td>{t.insar_coverage === "none" ? "not observable" : String(t.creep_state)}</td>
+                      <td>{!t.insar_coverage || t.insar_coverage === "none" ? "not observable" : String(t.creep_state)}</td>
                     </tr>
                   );
                 })}

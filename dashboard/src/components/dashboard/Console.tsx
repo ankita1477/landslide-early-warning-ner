@@ -126,7 +126,7 @@ export function Console({ geojson, allSegments, health, thresholds, computedAt, 
 
           <aside className="region region-inspector">
             <Inspector segmentId={state.selectedId} thresholds={sortedThresholds}
-                       summary={summary} onZoom={() => setZoomNonce((n) => n + 1)}
+                       summary={summary} onZoom={() => { setZoomNonce((n) => n + 1); dispatch({ type: "pane", pane: "map" }); }}
                        onClose={() => select(null)} />
           </aside>
         </div>

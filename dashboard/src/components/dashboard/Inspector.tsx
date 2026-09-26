@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Copy, Crosshair, Download, X } from "lucide-react";
+import { Copy, Crosshair, Download, ExternalLink, X } from "lucide-react";
 import { api, type SegmentDetail, type Tier } from "../../api/client";
 import { TIER_COLOR, TIER_INK, TIER_WORD } from "../../theme";
 import { LayerStack } from "../visuals/LayerStack";
@@ -298,7 +298,7 @@ export function Inspector({ segmentId, thresholds, summary, onZoom, onClose }: {
           The Sikkim inventory records extents, not dates, so these carry no date.
         </p>
         <p className="fact-line">
-          InSAR: {f.insar_coverage === "none"
+          InSAR: {!f.insar_coverage || f.insar_coverage === "none"
             ? "no coherent pixels — this slope is not observable"
             : `${f.creep_state} · coverage ${f.insar_coverage}`}
         </p>
@@ -316,7 +316,13 @@ export function Inspector({ segmentId, thresholds, summary, onZoom, onClose }: {
           a.href = url; a.download = `${detail.id.replace(":", "_")}.json`; a.click();
           URL.revokeObjectURL(url);
         }}><Download size={14} /> JSON</button>
-        <button className="btn btn-ghost" onClick={onZoom}><Crosshair size={14} /> Open in map</button>
+        <button className="btn btn-ghost" onClick={onZoom}><Crosshair size={14} /> Zoom map</button>
+        {f.lat != null && (
+          <a className="btn btn-ghost" target="_blank" rel="noreferrer"
+             href={`https://www.google.com/maps/search/?api=1&query=${f.lat},${f.lon}`}>
+            <ExternalLink size={14} /> Google Maps
+          </a>
+        )}
       </div>
     </motion.div>
   );
