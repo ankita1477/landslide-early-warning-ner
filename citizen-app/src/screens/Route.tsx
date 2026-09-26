@@ -19,7 +19,7 @@ const STOPS = PLACES as Place[];
 const DEFAULT_TO = STOPS.find((s) => s.name === "Gangtok") ?? STOPS[STOPS.length - 1];
 
 /** Check a journey rather than a point. Someone about to drive Sevoke to Gangtok
- *  needs to know about the worst kilometre on the way, not the one they are
+ *  needs to know about the worst segment on the way, not the one they are
  *  standing on. */
 export function Route() {
   const [from, setFrom] = useState<Place>(STOPS[0]);
@@ -70,7 +70,7 @@ export function Route() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.h1}>Check a journey</Text>
-      <Text style={styles.lead}>Pick where you start and where you are going. The road between is read kilometre by kilometre.</Text>
+      <Text style={styles.lead}>Pick where you start and where you are going. The road between is checked section by section.</Text>
 
       {busy && <Checking stage={stage} />}
 

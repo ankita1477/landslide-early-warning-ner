@@ -18,7 +18,7 @@ const STOPS = PLACES as { name: string; km: number }[];
  *
  *  A tile map would be heavier, need a key, and be useless offline — which is
  *  when this app matters most. Drawing the road itself from coordinates already
- *  cached keeps the map working with no signal, and every kilometre is a tap
+ *  cached keeps the map working with no signal, and every segment is a tap
  *  target rather than a pixel on someone else's raster.
  */
 export function MapScreen() {
@@ -96,7 +96,7 @@ export function MapScreen() {
       <ScrollView contentContainerStyle={[styles.content, selected && styles.contentWithSheet]}>
         <View style={styles.intro}>
           <Text style={styles.h1}>The road</Text>
-          <Text style={styles.lead}>Every kilometre of NH-10, coloured by today's reading. Tap a section.</Text>
+          <Text style={styles.lead}>All of NH-10, coloured by today's reading. Tap a section.</Text>
         </View>
 
         <View style={styles.mapWrap}>
@@ -197,7 +197,7 @@ function factorsOf(feature: GeoFeature) {
   };
 }
 
-/** A ring that breathes around the chosen kilometre.
+/** A ring that breathes around the chosen segment.
  *
  *  On a road drawn at this scale a thicker stroke alone is easy to lose. The
  *  ring says "this one" without moving the map or hiding what is under it.

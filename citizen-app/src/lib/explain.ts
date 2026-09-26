@@ -100,6 +100,28 @@ export const SITUATION: Record<Tier, { headline: string; sub: string }> = {
   },
 };
 
+/** The same four readings, worded for a stretch the person is not standing on.
+ *  "You're in a low-risk area" is only true when they are on the road; shown
+ *  to someone hundreds of kilometres away it is a claim about them the app has
+ *  no basis for. */
+export const SITUATION_THERE: Record<Tier, { headline: string; sub: string }> = {
+  green: { headline: "Low risk on this stretch", sub: "No landslide warning here today" },
+  yellow: { headline: "This stretch is being watched", sub: "No warning yet — check again before you travel" },
+  orange: { headline: "There's a warning on this stretch", sub: "Landslides are possible here" },
+  red: { headline: "Danger on this stretch", sub: "Landslides are likely here right now" },
+};
+
+/** Beyond this, the person is not on the corridor and the app says so. A
+ *  segment's runout reach tops out near 800 m; 5 km is generous. */
+export const NEAR_ROAD_M = 5000;
+
+/** "340 m" close by, "12.4 km" further out — never "768083 m". */
+export function distanceLabel(metres: number): string {
+  if (metres < 1000) return `${Math.round(metres)} m`;
+  const km = metres / 1000;
+  return `${km < 100 ? km.toFixed(1) : Math.round(km)} km`;
+}
+
 export const ACTION: Record<Tier, { label: string; action: string; urgent: boolean }> = {
   green: {
     label: "Safe to travel",

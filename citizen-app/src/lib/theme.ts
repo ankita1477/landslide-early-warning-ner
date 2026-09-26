@@ -6,7 +6,7 @@
  *  things on screen, so they read as signal rather than decoration.
  *
  *  The risk ramp itself matches the officials' dashboard exactly: a citizen and
- *  a control room must never see the same kilometre in two different colours.
+ *  a control room must never see the same segment in two different colours.
  */
 
 import type { TextStyle } from "react-native";

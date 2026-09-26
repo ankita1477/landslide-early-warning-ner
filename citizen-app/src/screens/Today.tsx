@@ -9,7 +9,7 @@ import { RiskSkeleton } from "../components/Skeleton";
 import { TABBAR_HEIGHT } from "../components/TabBar";
 import { Hillside } from "../illustrations/Hillside";
 import { record } from "../lib/history";
-import { ACTION, SITUATION, headline, reasons } from "../lib/explain";
+import { ACTION, NEAR_ROAD_M, SITUATION, SITUATION_THERE, distanceLabel, headline, reasons } from "../lib/explain";
 import { PULSE, useReducedMotion } from "../lib/motion";
 import { C, RADIUS, SPACE, TIER_COLOR, TIER_INK, TIER_RANK, TIER_WASH, TIER_WORD, TYPE, type Tier } from "../lib/theme";
 
@@ -25,7 +25,10 @@ export function Today({ onRoute, onSafety, onEscalation }: {
   const [point, setPoint] = useState<Cached<PointRisk> | null>(null);
   const [detail, setDetail] = useState<SegmentDetail | null>(null);
   const [corridor, setCorridor] = useState<SegmentSummary[]>([]);
-  const [located, setLocated] = useState(false);
+  // "here": on the corridor. "far": location known, but nowhere near NH-10.
+  // "off": no location. Only "here" may be spoken about as the person's own stretch.
+  const [where, setWhere] = useState<"here" | "far" | "off">("off");
+  const [farBy, setFarBy] = useState(0);
   const [busy, setBusy] = useState(true);
   const [failed, setFailed] = useState(false);
   const { width } = useWindowDimensions();
@@ -33,20 +36,30 @@ export function Today({ onRoute, onSafety, onEscalation }: {
   const load = useCallback(async () => {
     setBusy(true);
     setFailed(false);
-    let { lat, lon } = SEVOKE;
+    let position: { lat: number; lon: number } | null = null;
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status === "granted") {
-        const position = await Location.getCurrentPositionAsync({});
-        lat = position.coords.latitude;
-        lon = position.coords.longitude;
-        setLocated(true);
+        const fix = await Location.getCurrentPositionAsync({});
+        position = { lat: fix.coords.latitude, lon: fix.coords.longitude };
       }
     } catch {
       // Location refused or unavailable; the corridor start still gives a real answer.
     }
     try {
-      const result = await api.nearby(lat, lon);
+      let result = await api.nearby((position ?? SEVOKE).lat, (position ?? SEVOKE).lon);
+      if (!position) {
+        setWhere("off");
+      } else if (result.data.distance_to_segment_m <= NEAR_ROAD_M) {
+        setWhere("here");
+      } else {
+        // Nowhere near the road. The nearest segment to someone in another
+        // state is an arbitrary one, so show where the road starts instead,
+        // and say how far away they are.
+        setFarBy(result.data.distance_to_segment_m);
+        setWhere("far");
+        result = await api.nearby(SEVOKE.lat, SEVOKE.lon);
+      }
       setPoint(result);
       const full = await api.segment(result.data.segment.id);
       setDetail(full.data);
@@ -88,7 +101,7 @@ export function Today({ onRoute, onSafety, onEscalation }: {
         <View style={[styles.hero, { backgroundColor: TIER_WASH[tier] }]}>
           <View style={styles.heroTop}>
             <Text style={[styles.eyebrow, { color: TIER_INK[tier] }]}>
-              Your stretch · NH-10 km {point.data.segment.chainage_km.toFixed(0)}
+              {where === "here" ? "Your stretch" : "Sevoke"} · NH-10 km {point.data.segment.chainage_km.toFixed(0)}
             </Text>
             <Badge tier={tier} />
           </View>
@@ -97,16 +110,18 @@ export function Today({ onRoute, onSafety, onEscalation }: {
             <Hillside tier={tier} width={Math.min(width - SPACE.lg * 2, 400)} />
           </View>
 
-          <Text style={styles.display}>{SITUATION[tier].headline}</Text>
-          <Text style={styles.sub}>{SITUATION[tier].sub}</Text>
+          <Text style={styles.display}>{(where === "here" ? SITUATION : SITUATION_THERE)[tier].headline}</Text>
+          <Text style={styles.sub}>{(where === "here" ? SITUATION : SITUATION_THERE)[tier].sub}</Text>
 
           <View style={styles.meta}>
             <View style={styles.metaRow}>
               <MapPin color={C.ink2} size={14} />
               <Text style={styles.metaText}>
-                {located
-                  ? `${Math.round(point.data.distance_to_segment_m)} m from you`
-                  : "Showing Sevoke — turn on location for your own position"}
+                {where === "here"
+                  ? `${distanceLabel(point.data.distance_to_segment_m)} from you`
+                  : where === "far"
+                    ? `You are ${distanceLabel(farBy)} from NH-10 — showing Sevoke, where the road starts`
+                    : "Showing Sevoke — turn on location for your own position"}
               </Text>
             </View>
             <View style={styles.metaRow}>
