@@ -3,6 +3,13 @@ import type { FeatureCollection } from "geojson";
 // maplibre-gl v6 exposes named exports only; there is no default export.
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+// MapLibre parses GeoJSON in a web worker it loads from a path relative to its
+// own module. A production build never emits that file, so on the hosted site
+// the tiles drew and the road never did. Importing it with ?worker&url makes Vite ship
+// it, with the shared chunk it imports bundled in, and hand back its address.
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+
+maplibregl.setWorkerUrl(workerUrl);
 import { ToggleGroup, Tooltip } from "radix-ui";
 import { Compass, Maximize2, Minus, Plus } from "lucide-react";
 import type { Tier } from "../../api/client";
