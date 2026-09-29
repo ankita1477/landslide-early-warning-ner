@@ -5,6 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Landsafe NER · Operations</title>
+    <script>
+      // Routes live in the hash (#/dashboard). A link pasted through a form or
+      // chat can arrive with "#" encoded as "%23", and a bare /dashboard is an
+      // easy guess; both reach this page through the Vercel fallback, so move
+      // the path back into the hash before the app reads it.
+      (function () {
+        var path = decodeURIComponent(location.pathname);
+        if (path === "/") return;
+        var at = path.indexOf("#");
+        var hash = at === -1 ? "#" + path : path.slice(at);
+        history.replaceState(null, "", "/" + location.search + hash);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
