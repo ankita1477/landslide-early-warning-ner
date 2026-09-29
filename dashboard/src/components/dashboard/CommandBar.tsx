@@ -74,9 +74,13 @@ export function CommandBar({
         <Tip label="The API serves a single scored run; per-day history is not stored yet">
           <span className="scored mono">{scoredLabel(computedAt)}</span>
         </Tip>
-        <span className={stale ? "status stale" : "status live"}>
+        {/* Until the first answer arrives the API may simply be waking up (a
+            free host sleeps when idle), so this says so instead of "live · 0". */}
+        <span className={stale ? "status stale" : health ? "status live" : "status waking"}>
           <span className="status-dot" aria-hidden="true" />
-          {stale ? "stale" : <>live<span className="wide-only"> · {health?.segments_loaded ?? 0} segments</span></>}
+          {stale ? "stale"
+            : health ? <>live<span className="wide-only"> · {health.segments_loaded} segments</span></>
+            : <>connecting<span className="wide-only"> · waking the server</span></>}
         </span>
         <Tip label="High-contrast bands: order by lightness alone">
           <label className="switch-row">

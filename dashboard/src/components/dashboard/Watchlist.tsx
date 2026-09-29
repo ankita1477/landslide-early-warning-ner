@@ -94,7 +94,12 @@ export function Watchlist({
         </ToggleGroup.Root>
       </div>
 
-      {segments.length === 0 ? (
+      {total === 0 ? (
+        <div className="wl-empty">
+          <p>Loading the corridor…</p>
+          <p className="wl-empty-note">The first visit can take up to a minute while the server wakes.</p>
+        </div>
+      ) : segments.length === 0 ? (
         <div className="wl-empty">
           <p>No segments match.</p>
           <button className="btn btn-ghost" onClick={onClearFilters}>Clear filters</button>
