@@ -31,12 +31,29 @@ export default function App() {
   const onDashboard = route === "#/dashboard";
   const theme = useThemeMode();
 
+  // The hosted API sleeps when idle and takes up to a minute to answer the
+  // first request; until then the proxy in front of it returns 502s. So a
+  // failure is retried with growing gaps for about two minutes before it is
+  // reported, and the error clears itself if a later attempt succeeds.
   useEffect(() => {
-    Promise.all([api.geojson(), api.watchlist(25), api.health(), api.segments(), api.tiers()])
-      .then(([g, w, h, s, t]) => {
-        setGeojson(g); setWatchlist(w.segments); setHealth(h); setAll(s.segments); setThresholds(t);
-      })
-      .catch((e) => setError(String(e)));
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const started = Date.now();
+    const attempt = (delay: number) => {
+      Promise.all([api.geojson(), api.watchlist(25), api.health(), api.segments(), api.tiers()])
+        .then(([g, w, h, s, t]) => {
+          if (cancelled) return;
+          setGeojson(g); setWatchlist(w.segments); setHealth(h); setAll(s.segments); setThresholds(t);
+          setError(null);
+        })
+        .catch((e) => {
+          if (cancelled) return;
+          if (Date.now() - started > 120_000) setError(String(e));
+          timer = setTimeout(() => attempt(Math.min(delay * 2, 15_000)), delay);
+        });
+    };
+    attempt(2_000);
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, []);
 
   // The worst segment carries the scoring timestamp for the whole run.
@@ -51,7 +68,8 @@ export default function App() {
     <>
       {error && (
         <div className="banner" role="alert">
-          {error} — is the API running? <code className="mono">make api</code>
+          Can't reach the data server yet. Still retrying — please wait.
+          <span className="mono tiny"> ({error})</span>
         </div>
       )}
       {onDashboard ? (
